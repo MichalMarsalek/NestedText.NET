@@ -1,6 +1,5 @@
 using FluentAssertions;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace NestedText.Tests;
 
@@ -26,10 +25,10 @@ public class OfficialTests
 
         if (loadIn != null)
         {
-            var act = () => NestedTextSerializer.Deserialize<JsonNode>(loadIn);
+            var act = () => NestedTextSerializer.Deserialize<JsonElement>(loadIn);
             if (loadOut != null)
             {
-                var expected = JsonSerializer.Deserialize<JsonNode>(loadOut);
+                var expected = JsonSerializer.Deserialize<JsonElement>(loadOut);
                 act().Should().BeEquivalentTo(expected);
             }
             else if (loadError != null)

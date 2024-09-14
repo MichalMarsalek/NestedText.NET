@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace NestedText;
@@ -20,12 +20,144 @@ internal class Cst(IEnumerable<Line> lines)
         return string.Join(Environment.NewLine, Lines);
     }
 
-    public static Cst FromJsonNode(JsonNode node)
+    public static Cst FromJsonElement(JsonElement element, NestedTextSerializerOptions options)
     {
-        throw new NotImplementedException();
+        List<Line> lines = new();
+        bool IsValidInlineValue(JsonElement element, int? maxDepth, bool isInsideDictionary)
+        {
+            if (maxDepth == 0) return false;
+            return element.ValueKind switch
+            {
+                JsonValueKind.String => element.GetString()!.IsValidInlineString(isInsideDictionary),
+                JsonValueKind.Array => element.EnumerateArray().All(x => IsValidInlineValue(x, maxDepth - 1, isInsideDictionary)),
+                JsonValueKind.Object => element.EnumerateArray().All(x => IsValidInlineValue(x, maxDepth - 1, true)),
+                _ => false
+            };
+        }
+        void AppendInlineValueImpl(StringBuilder stringBuilder, JsonElement element)
+        {
+            switch(element.ValueKind)
+            {
+                case JsonValueKind.String:
+                    stringBuilder.Append(element.GetString());
+                    break;
+                case JsonValueKind.Array:
+                    stringBuilder.Append("[");
+                    foreach (var (child, i) in element.EnumerateArray().Select((x,i) => (x,i)))
+                    {
+                        if (i > 0) stringBuilder.Append(", ");
+                        AppendInlineValueImpl(stringBuilder, child);
+                    }
+                    stringBuilder.Append("}");
+                    break;
+                case JsonValueKind.Object:
+                    stringBuilder.Append("{");
+                    foreach (var (prop, i) in element.EnumerateObject().Select((x, i) => (x, i)))
+                    {
+                        if (i > 0) stringBuilder.Append(", ");
+                        stringBuilder.Append(prop.Name).Append(": ");
+                        AppendInlineValueImpl(stringBuilder, prop.Value);
+                    }
+                    stringBuilder.Append("}");
+                    break;
+            }
+        }
+        string EmitInlineValue(JsonElement element)
+        {
+            var stringBuilder = new StringBuilder();
+            AppendInlineValueImpl(stringBuilder, element);
+            return stringBuilder.ToString();
+        }
+
+        void ProcessElement(JsonElement element, int indentation)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.String:
+                    lines.AddRange(element.GetString()!.GetLines().Select(x => new StringItemLine
+                    {
+                        Indentation = indentation,
+                        Value = x
+                    }));
+                    break;
+                case JsonValueKind.Array:
+                case JsonValueKind.Object:
+                    if (IsValidInlineValue(element, options.MaxDepthToInline, false))
+                    {
+                        var inlined = EmitInlineValue(element);
+                        if (options.MaxLineLengthToInline == null || indentation + inlined.Length <= options.MaxLineLengthToInline)
+                        {
+                            lines.Add(new InlineValueLine
+                            {
+                                Indentation = indentation,
+                                Value = inlined
+                            });
+                        }
+                    }
+                    else if (element.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var child in element.EnumerateArray())
+                        {
+                            if (child.ValueKind == JsonValueKind.String && child.GetString()!.IsValidEndOfLineValue())
+                            {
+                                lines.Add(new ListItemLine
+                                {
+                                    Indentation = indentation,
+                                    Value = child.GetString()!
+                                });
+                            }
+                            else
+                            {
+                                lines.Add(new ListItemLine
+                                {
+                                    Indentation = indentation,
+                                    Value = ""
+                                });
+                                ProcessElement(child, indentation + options.Indentation);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (var prop in element.EnumerateObject())
+                        {
+                            if (prop.Name.IsValidKey())
+                            {
+                                if (prop.Value.ValueKind == JsonValueKind.String && prop.Value.GetString()!.IsValidEndOfLineValue())
+                                {
+                                    lines.Add(new DictionaryItemLine
+                                    {
+                                        Indentation = indentation,
+                                        Key = prop.Name,
+                                        Value = prop.Value.GetString()!
+                                    });
+                                }
+                                else
+                                {
+                                    lines.Add(new DictionaryItemLine
+                                    {
+                                        Indentation = indentation,
+                                        Key = prop.Name,
+                                        Value = ""
+                                    });
+                                    ProcessElement(prop.Value, indentation + options.Indentation);
+                                }
+                            }
+                            else
+                            {
+                                throw new NotImplementedException();
+                            }
+                        }
+                    }
+                    break;
+                default: throw new Exception($"Unexpected kind {element.ValueKind}.");
+            }
+        }
+        ProcessElement(element, 0);
+        return new Cst(lines);
     }
 
-    public JsonNode ToJsonNode()
+    public JsonElement ToJsonElement()
     {
         throw new NotImplementedException();
     }
@@ -65,7 +197,15 @@ internal class TaglessStringItemLine : ValueLine
 }
 internal class KeyItemLine : ValueLine
 {
-    protected override string Tag => ": ";
+    protected override string Tag => ":";
+}
+internal class ListItemLine : ValueLine
+{
+    protected override string Tag => "-";
+    protected override string GetStringFollowingTag()
+    {
+        return (Value == "" ? "" : " ") + Value;
+    }
 }
 internal class DictionaryItemLine : ValueLine
 {
@@ -73,7 +213,7 @@ internal class DictionaryItemLine : ValueLine
     protected override string Tag => ": ";
     public override string ToString()
     {
-        return new string(' ', Indentation) + Key + Tag + Value;
+        return new string(' ', Indentation) + Key + Tag + (Value == "" ? "" : " ") + Value;
     }
 }
 internal class InlineValueLine : ValueLine

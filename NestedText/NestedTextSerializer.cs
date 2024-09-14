@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace NestedText;
 
@@ -27,12 +26,11 @@ public static class NestedTextSerializer
     /// <returns>Serialized data.</returns>
     public static string Serialize<T>(T data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        if (data is JsonNode node)
+        if (data is JsonElement element)
         {
-            return Cst.FromJsonNode(node).ToString();
+            return Cst.FromJsonElement(element, options).ToString();
         }
-        return Cst.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!)
-            .Transform(options ?? new()).ToString();
+        return Cst.FromJsonElement(JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
     }
 
     /// <summary>
@@ -44,11 +42,11 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        var jsonNode = Parser.Parse(data, options).ToJsonNode();
-        if (jsonNode is T result)
+        var jsonElement = Parser.Parse(data, options).ToJsonElement();
+        if (jsonElement is T result)
         {
             return result;
         }
-        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
+        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonElement, jsonOptions), jsonOptions)!;
     }
 }
