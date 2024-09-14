@@ -34,40 +34,6 @@ internal class Cst(IEnumerable<Line> lines)
                 _ => false
             };
         }
-        void AppendInlineValueImpl(StringBuilder stringBuilder, JsonElement element)
-        {
-            switch(element.ValueKind)
-            {
-                case JsonValueKind.String:
-                    stringBuilder.Append(element.GetString());
-                    break;
-                case JsonValueKind.Array:
-                    stringBuilder.Append("[");
-                    foreach (var (child, i) in element.EnumerateArray().Select((x,i) => (x,i)))
-                    {
-                        if (i > 0) stringBuilder.Append(", ");
-                        AppendInlineValueImpl(stringBuilder, child);
-                    }
-                    stringBuilder.Append("}");
-                    break;
-                case JsonValueKind.Object:
-                    stringBuilder.Append("{");
-                    foreach (var (prop, i) in element.EnumerateObject().Select((x, i) => (x, i)))
-                    {
-                        if (i > 0) stringBuilder.Append(", ");
-                        stringBuilder.Append(prop.Name).Append(": ");
-                        AppendInlineValueImpl(stringBuilder, prop.Value);
-                    }
-                    stringBuilder.Append("}");
-                    break;
-            }
-        }
-        string EmitInlineValue(JsonElement element)
-        {
-            var stringBuilder = new StringBuilder();
-            AppendInlineValueImpl(stringBuilder, element);
-            return stringBuilder.ToString();
-        }
 
         void ProcessElement(JsonElement element, int indentation)
         {
@@ -155,6 +121,45 @@ internal class Cst(IEnumerable<Line> lines)
         }
         ProcessElement(element, 0);
         return new Cst(lines);
+    }
+    private static void AppendInlineValue(StringBuilder stringBuilder, JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                stringBuilder.Append(element.GetString());
+                break;
+            case JsonValueKind.Array:
+                stringBuilder.Append("[");
+                foreach (var (child, i) in element.EnumerateArray().Select((x, i) => (x, i)))
+                {
+                    if (i > 0) stringBuilder.Append(", ");
+                    AppendInlineValue(stringBuilder, child);
+                }
+                stringBuilder.Append("}");
+                break;
+            case JsonValueKind.Object:
+                stringBuilder.Append("{");
+                foreach (var (prop, i) in element.EnumerateObject().Select((x, i) => (x, i)))
+                {
+                    if (i > 0) stringBuilder.Append(", ");
+                    stringBuilder.Append(prop.Name).Append(": ");
+                    AppendInlineValue(stringBuilder, prop.Value);
+                }
+                stringBuilder.Append("}");
+                break;
+        }
+    }
+    private static string EmitInlineValue(JsonElement element)
+    {
+        var stringBuilder = new StringBuilder();
+        AppendInlineValue(stringBuilder, element);
+        return stringBuilder.ToString();
+    }
+
+    private static JsonElement ParseInlineValue(string content)
+    {
+        throw new NotImplementedException();
     }
 
     public JsonElement ToJsonElement()
