@@ -27,6 +27,10 @@ public static class NestedTextSerializer
     /// <returns>Serialized data.</returns>
     public static string Serialize<T>(T data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
+        if (data is JsonNode node)
+        {
+            return Cst.FromJsonNode(node).ToString();
+        }
         return Cst.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!)
             .Transform(options ?? new()).ToString();
     }
@@ -40,6 +44,11 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(Parser.Parse(data, options).ToJsonNode(), jsonOptions), jsonOptions)!;
+        var jsonNode = Parser.Parse(data, options).ToJsonNode();
+        if (jsonNode is T result)
+        {
+            return result;
+        }
+        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
     }
 }
