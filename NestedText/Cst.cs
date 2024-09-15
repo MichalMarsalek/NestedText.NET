@@ -396,12 +396,12 @@ internal class Cst
             JsonNode result = ReadStringValue() ?? ReadListValue() ?? ReadDictionaryValue() ?? JsonValue.Create("");
             if (pointer < lines.Count && lines[pointer].Indentation != parentIndentation)
             {
-                throw new NestedTextDeserializeException("Unexpected indentation.", pointer + 1, 1);
+                throw new NestedTextDeserializeException("Unexpected indentation.", lines[pointer].LineNumber, 1);
             }
             return result;
         }
         var result = ReadValue();
-        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", pointer + 1, 1);
+        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", Lines.Count, 1);
         return result;
     }
 }
