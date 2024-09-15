@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace NestedText;
 
@@ -6,7 +7,7 @@ public static class NestedTextSerializer
 {
     /// <summary>
     /// Formats a NestedText document.
-    /// For valid documents with no comments, Format(x) is equalent to Serialize(Deserialize(x)),
+    /// For valid documents with no comments, Format(x) is equivalent to Serialize(Deserialize(x)),
     /// but Format never errors and it preserves comments.
     /// </summary>
     /// <param name="source">A document to format.</param>
@@ -14,7 +15,7 @@ public static class NestedTextSerializer
     /// <returns>Formatted source.</returns>
     public static string Format(string source, NestedTextSerializerOptions? options = null)
     {
-        return Parser.Parse(source, options).Transform(options ?? new()).ToString();
+        return Cst.Parse(source, options).Transform(options ?? new()).ToString();
     }
 
     /// <summary>
@@ -26,11 +27,11 @@ public static class NestedTextSerializer
     /// <returns>Serialized data.</returns>
     public static string Serialize<T>(T data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        if (data is JsonElement element)
+        if (data is JsonNode node)
         {
-            return Cst.FromJsonElement(element, options).ToString();
+            return Cst.FromJsonNode(node, options).ToString();
         }
-        return Cst.FromJsonElement(JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
+        return Cst.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
     }
 
     /// <summary>
@@ -42,11 +43,11 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        var jsonElement = Parser.Parse(data, options).ToJsonElement();
-        if (jsonElement is T result)
+        var jsonNode = Cst.Parse(data, options).ToJsonNode();
+        if (jsonNode is T result)
         {
             return result;
         }
-        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonElement, jsonOptions), jsonOptions)!;
+        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
     }
 }
