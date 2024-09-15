@@ -264,7 +264,7 @@ internal class Cst
     private static Line ParseLine(string line, Line? previous)
     {
         var indentation = 0;
-        while (indentation < line.Length && line[0] == ' ')
+        while (indentation < line.Length && line[indentation] == ' ')
         {
             indentation++;
         }
@@ -305,7 +305,7 @@ internal class Cst
         var errorLine = Lines.OfType<ErrorLine>().FirstOrDefault();
         if (errorLine != null)
         {
-            throw new NestedTextDeserializeException("Unexpected line.", errorLine.LineNumber, 1);
+            throw new NestedTextDeserializeException("Unexpected line.", errorLine.LineNumber, errorLine.Indentation + 1);
         }
         List<Line> lines = Lines.Where(x => x is not BlankLine && x is not CommentLine).ToList();
         var pointer = 0;
@@ -341,37 +341,43 @@ internal class Cst
         }
         JsonNode? ReadDictionaryValue()
         {
-            List<KeyValuePair<string, JsonNode?>> props = [];
-            var lines = ReadLinesOfType<KeyItemOrDictionaryItemLine>();
-            List<string> keyLines = [];
-            foreach (var line in lines)
+            try
             {
-                if (line is DictionaryItemLine dil)
+                Dictionary<string, JsonNode> props = [];
+                var lines = ReadLinesOfType<KeyItemOrDictionaryItemLine>();
+                List<string> keyLines = [];
+                foreach (var line in lines)
                 {
-                    if (keyLines.Any())
+                    if (line is DictionaryItemLine dil)
                     {
-                        props.Add(new(keyLines.JoinLines(), JsonValue.Create("")));
-                        keyLines.Clear();
+                        if (keyLines.Any())
+                        {
+                            props.Add(keyLines.JoinLines(), JsonValue.Create(""));
+                            keyLines.Clear();
+                        }
+                        props.Add(dil.Key, ReadListOrDictionaryValue(dil));
                     }
-                    props.Add(new(dil.Key, ReadListOrDictionaryValue(dil)));
+                    if (line is KeyItemLine kil)
+                    {
+                        keyLines.Add(kil.Value);
+                        var value = ReadValue();
+                        if (value != null)
+                        {
+                            props.Add(keyLines.JoinLines(), value);
+                            keyLines.Clear();
+                        }
+                    }
                 }
-                if (line is KeyItemLine kil)
+                if (keyLines.Any())
                 {
-                    keyLines.Add(kil.Value);
-                    var value = ReadValue();
-                    if (value != null)
-                    {
-                        props.Add(new(keyLines.JoinLines(), value));
-                        keyLines.Clear();
-                    }
+                    props.Add(keyLines.JoinLines(), JsonValue.Create(""));
                 }
+                return new JsonObject(props);
             }
-            if (keyLines.Any())
+            catch (ArgumentException ex)
             {
-                props.Add(new(keyLines.JoinLines(), JsonValue.Create("")));
+                throw new NestedTextDeserializeException("Duplicate key", pointer, lines[pointer-1].Indentation + 1);
             }
-
-            return new JsonObject(props);
         }
         JsonNode ReadValue()
         {

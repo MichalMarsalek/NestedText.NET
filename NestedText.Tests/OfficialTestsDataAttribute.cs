@@ -12,7 +12,14 @@ namespace NestedText.Tests
         }
         public override IEnumerable<object[]>? GetData(MethodInfo testMethod)
         {
-            return Directory.GetDirectories(TestPath).Select(x => new object[] { Path.GetFileName(x) });
+            string[] kinds = ["load", "dump"];
+            return Directory.GetDirectories(TestPath)
+                .SelectMany(directory =>
+                {
+                    var files = Directory.GetFiles(directory);
+                    return kinds.Where(kind => files.Any(file => file.Contains(kind)))
+                        .Select(kind => new object[] { Path.GetFileName(directory), kind });
+                });
         }
     }
 }
