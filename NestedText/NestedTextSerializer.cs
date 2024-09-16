@@ -1,8 +1,9 @@
-﻿using System.Text.Json;
+﻿using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+[assembly: InternalsVisibleTo("NestedText.Tests")]
 
 namespace NestedText;
-
 public static class NestedTextSerializer
 {
     /// <summary>
@@ -29,7 +30,7 @@ public static class NestedTextSerializer
     {
         if (data is JsonNode node)
         {
-            return Cst.FromJsonNode(node, options).ToString();
+            return Cst.FromJsonNode(node, options ?? new()).ToString();
         }
         return Cst.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
     }

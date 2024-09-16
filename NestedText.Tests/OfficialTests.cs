@@ -55,11 +55,13 @@ public class OfficialTests
 
             if (dumpIn != null)
             {
-                var act = () => NestedTextSerializer.Serialize<JsonNode>(dumpIn);
+                var node = JsonSerializer.Deserialize<JsonNode>(dumpIn)!;
+                var act = () => NestedTextSerializer.Serialize(node, new() { MaxDepthToInline = 0, Indentation = 4 });
                 if (dumpOut != null)
                 {
                     var actual = act();
-                    actual.Should().BeEquivalentTo(dumpOut);
+                    var expected = dumpOut.GetLines().JoinLines();
+                    actual.Should().BeEquivalentTo(expected);
                 }
             }
         }

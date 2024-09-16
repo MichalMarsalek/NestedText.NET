@@ -24,5 +24,6 @@ internal static class Extensions
         => !value.StartsWith(' ') && !value.EndsWith(' ') && value.All(x => x.IsValidInlineChar(isInsideDictionary));
 
     internal static bool IsValidKey(this string value)
-        => throw new NotImplementedException();
+        // TODO handle unicode spaces
+        => value != "" && value[0] != '[' && value[0] != '{' && value[0] != ' ' && value.All(x => x != '\n' && x != '\r') && !value.Contains("- ") && !value.Contains("> ") && !value.Contains(": ");
 }

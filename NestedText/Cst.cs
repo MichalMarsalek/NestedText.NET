@@ -24,7 +24,7 @@ internal class Cst
         throw new NotImplementedException();
     }
 
-    public override string ToString() => Lines.Select(x => x.ToString()).JoinLines();
+    public override string ToString() => Lines.Select(x => x.ToString()).JoinLines() + Environment.NewLine;
 
     public static Cst FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
     {
@@ -92,7 +92,7 @@ internal class Cst
                 {
                     if (prop.Key.IsValidKey())
                     {
-                        if (prop.Value.GetValueKind() == JsonValueKind.String && prop.Value.GetValue<string>().IsValidEndOfLineValue())
+                        if (prop.Value!.GetValueKind() == JsonValueKind.String && prop.Value.GetValue<string>().IsValidEndOfLineValue())
                         {
                             lines.Add(new DictionaryItemLine
                             {
@@ -114,7 +114,12 @@ internal class Cst
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        lines.AddRange(prop.Key.GetLines().Select(line => new KeyItemLine
+                        {
+                            Indentation = indentation,
+                            Value = line
+                        }));
+                        ProcessNode(prop.Value!, indentation + options.Indentation);
                     }
                 }
             }
@@ -455,11 +460,15 @@ internal abstract class KeyItemOrDictionaryItemLine : ValueLine { }
 internal class KeyItemLine : KeyItemOrDictionaryItemLine
 {
     protected override string Tag => ":";
+    protected override string GetStringFollowingTag()
+    {
+        return (Value == "" ? "" : " ") + Value;
+    }
 }
 internal class DictionaryItemLine : KeyItemOrDictionaryItemLine
 {
     public required string Key { get; set; }
-    protected override string Tag => ": ";
+    protected override string Tag => ":";
     public override string ToString()
     {
         return new string(' ', Indentation) + Key + Tag + (Value == "" ? "" : " ") + Value;
