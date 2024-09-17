@@ -31,12 +31,14 @@ internal class Cst
         List<Line> lines = new();
         bool IsValidInlineValue(JsonNode node, int? maxDepth, bool isInsideDictionary)
         {
+            if (node is JsonArray _array && _array.Count == 0) return true;
+            if (node is JsonObject _obj && _obj.Count == 0) return true;
             if (maxDepth == 0) return false;
             return node switch
             {
                 JsonValue value => value.GetValueKind() == JsonValueKind.String && node.GetValue<string>()!.IsValidInlineString(isInsideDictionary),
                 JsonArray array => array.All(x => x != null && IsValidInlineValue(x, maxDepth - 1, isInsideDictionary)),
-                JsonObject obj => obj.All(x => x.Key.IsValidInlineString(true) &&  IsValidInlineValue(x.Value, maxDepth - 1, true)),
+                JsonObject obj => obj.All(x => x.Key.IsValidInlineString(true) && IsValidInlineValue(x.Value, maxDepth - 1, true)),
                 _ => false
             };
         }
@@ -208,14 +210,14 @@ internal class Cst
                     pointer++;
                     return new JsonObject();
                 }
-                var key = ReadString(true).Trim();
+                var key = ReadString(true);
                 ReadExpected(':');
                 var value = ReadValue(true);
                 var props = new List<KeyValuePair<string, JsonNode?>>() { new(key, value)};
                 while (Peek() == ',')
                 {
                     pointer++;
-                    key = ReadString(true).Trim();
+                    key = ReadString(true);
                     ReadExpected(':');
                     value = ReadValue(true);
                     props.Add(new(key, value));
@@ -277,7 +279,7 @@ internal class Cst
         {
             return new BlankLine { Indentation = indentation };
         }
-        if ((previous is ValueLine vl && vl.Value != "" && vl.Indentation < indentation)
+        if ((previous is ValueLine vl && previous is not KeyItemLine && vl.Value != "" && vl.Indentation < indentation)
             || (previous is TaglessStringItemLine tsil && tsil.Indentation == indentation))
         {
             return new TaglessStringItemLine { Indentation = indentation, Value = line[indentation..] };
@@ -294,13 +296,16 @@ internal class Cst
             if (c == '-') return new ListItemLine { Indentation = indentation, Value = value };
             if (c == ':') return new KeyItemLine { Indentation = indentation, Value = value };
         }
-        var colonIndex = line.IndexOf(':', indentation);
-        if (colonIndex > -1)
+        if (line.EndsWith(':'))
         {
-            var key = line[indentation..colonIndex];
-            if (colonIndex + 1 == line.Length) value = "";
-            else if (line[colonIndex + 1] == ' ') value = line[(colonIndex + 2)..];
-            if (value != null) return new DictionaryItemLine { Indentation = indentation, Key = key, Value = value };
+            return new DictionaryItemLine { Indentation = indentation, Key = line[indentation..^1].TrimEnd(), Value = "" };
+        }
+        var colonSpaceIndex = line.IndexOf(": ", indentation);
+        if (colonSpaceIndex > -1)
+        {
+            var key = line[indentation..colonSpaceIndex];
+            value = line[(colonSpaceIndex + 2)..];
+            return new DictionaryItemLine { Indentation = indentation, Key = key.TrimEnd(), Value = value };
         }
         return new ErrorLine { Indentation = indentation, Value = line[indentation..] };
     }
@@ -322,13 +327,23 @@ internal class Cst
             var indentation = -1;
             while (pointer < lines.Count && lines[pointer] is T line && (indentation == -1 || line.Indentation == indentation))
             {
+                pointer++;
                 indentation = line.Indentation;
                 if (indentation <= parentIndentation) yield break;
-                pointer++;
                 yield return line;
             }
         }
-        JsonNode ReadListOrDictionaryValue(ValueLine line)
+        JsonNode? ReadInlineValue()
+        {
+            var parentIndentation = pointer == 0 ? -1 : lines[pointer - 1].Indentation;
+            if (pointer < lines.Count && lines[pointer] is InlineValueLine ivl && ivl.Indentation > parentIndentation)
+            {
+                pointer++;
+                return ParseInlineValue(ivl.Value, ivl.Indentation + 1, ivl.LineNumber);
+            }
+            return null;
+        }
+        JsonNode? ReadListOrDictionaryValue(ValueLine line)
         {
             if (line.Value == "") return ReadValue();
             List<ValueLine> resultLines = [line, .. ReadLinesOfType<TaglessStringItemLine>()];
@@ -336,13 +351,14 @@ internal class Cst
         }
         JsonNode? ReadStringValue()
         {
-            var lines = ReadLinesOfType<StringItemLine>();
+            var lines = ReadLinesOfType<StringItemLine>().ToList();
             return lines.Any() ? JsonValue.Create(lines.JoinLinesValues()) : null;
         }
         JsonNode? ReadListValue()
         {
             var lines = ReadLinesOfType<ListItemLine>();
-            return lines.Any() ? new JsonArray(lines.Select(ReadListOrDictionaryValue).ToArray()) : null;
+            var values = lines.Select(ReadListOrDictionaryValue).ToArray();
+            return values.Any() ? new JsonArray(values) : null;
         }
         JsonNode? ReadDictionaryValue()
         {
@@ -361,6 +377,7 @@ internal class Cst
                             keyLines.Clear();
                         }
                         props.Add(dil.Key, ReadListOrDictionaryValue(dil));
+
                     }
                     if (line is KeyItemLine kil)
                     {
@@ -377,14 +394,14 @@ internal class Cst
                 {
                     props.Add(keyLines.JoinLines(), JsonValue.Create(""));
                 }
-                return new JsonObject(props);
+                return props.Any() ? new JsonObject(props) : null;
             }
             catch (ArgumentException ex)
             {
                 throw new NestedTextDeserializeException("Duplicate key", pointer, lines[pointer-1].Indentation + 1);
             }
         }
-        JsonNode ReadValue()
+        JsonNode? ReadValue()
         {
             if (pointer >= lines.Count)
             {
@@ -398,15 +415,15 @@ internal class Cst
                 throw new NestedTextDeserializeException("Unexpected indentation.", 1, 1);
             }
             if (indentation <= parentIndentation) return JsonValue.Create("");
-            JsonNode result = ReadStringValue() ?? ReadListValue() ?? ReadDictionaryValue() ?? JsonValue.Create("");
-            if (pointer < lines.Count && lines[pointer].Indentation != parentIndentation)
+            JsonNode? result = ReadInlineValue() ?? ReadStringValue() ?? ReadListValue() ?? ReadDictionaryValue();
+            if (result != null && pointer < lines.Count && lines[pointer].Indentation > parentIndentation)
             {
-                throw new NestedTextDeserializeException("Unexpected indentation.", lines[pointer].LineNumber, 1);
+                throw new NestedTextDeserializeException("Unexpected indentation.", lines[pointer].LineNumber, lines[pointer].Indentation < indentation ? Math.Max(0,parentIndentation) + 1 : indentation + 1);
             }
             return result;
         }
-        var result = ReadValue();
-        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", Lines.Count, 1);
+        var result = ReadValue() ?? JsonValue.Create("");
+        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", Lines[pointer].LineNumber, Lines[pointer].Indentation + 1);
         return result;
     }
 }

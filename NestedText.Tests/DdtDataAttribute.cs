@@ -3,16 +3,16 @@ using Xunit.Sdk;
 
 namespace NestedText.Tests
 {
-    public class OfficialTestsDataAttribute : DataAttribute
+    public class DdtDataAttribute : DataAttribute
     {
         public string TestPath { get; set; }
-        public OfficialTestsDataAttribute(string path)
+        public DdtDataAttribute(string path)
         {
             TestPath = path;
         }
         public override IEnumerable<object[]>? GetData(MethodInfo testMethod)
         {
-            string[] kinds = ["load", "dump"];
+            string[] kinds = ["load", "dump", "format"];
             return Directory.GetDirectories(TestPath)
                 .SelectMany(directory =>
                 {
