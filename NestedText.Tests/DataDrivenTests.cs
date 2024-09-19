@@ -51,7 +51,7 @@ public class DataDrivenTests
 
             if (loadIn != null)
             {
-                var act = () => NestedTextSerializer.Deserialize<JsonNode>(loadIn);
+                var act = () => NestedTextSerializer.Deserialize<JsonNode>(loadIn, new() { ParseTaglessStringLines = false });
                 if (loadOut != null)
                 {
                     var expected = JsonSerializer.Serialize(loadOut);

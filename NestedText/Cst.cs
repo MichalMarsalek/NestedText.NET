@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace NestedText;
 
@@ -260,10 +261,11 @@ internal class Cst
 
     public static Cst Parse(string source, NestedTextSerializerOptions? options = null)
     {
+        options ??= new();
         List<Line> lines = [];
         foreach (var line in source.GetLines())
         {
-            lines.Add(ParseLine(line, lines.LastOrDefault()));
+            lines.Add(ParseLine(line, options.ParseTaglessStringLines ? lines.LastOrDefault() : null));
         }
         return new Cst(lines);
     }
@@ -279,12 +281,16 @@ internal class Cst
         {
             return new BlankLine { Indentation = indentation };
         }
+        var c = line[indentation];
+        if (char.IsWhiteSpace(c))
+        {
+            return new ErrorLine { Indentation = indentation, Value = line[indentation..] };
+        }
         if ((previous is ValueLine vl && previous is not KeyItemLine && vl.Value != "" && vl.Indentation < indentation)
             || (previous is TaglessStringItemLine tsil && tsil.Indentation == indentation))
         {
             return new TaglessStringItemLine { Indentation = indentation, Value = line[indentation..] };
         }
-        var c = line[indentation];
         if (c == '[' || c == '{') return new InlineValueLine { Indentation = indentation, Value = line[indentation..] };
         if (c == '#') return new CommentLine { Indentation = indentation, Value = line[(indentation + 1)..] };
         string? value = null;
@@ -296,16 +302,16 @@ internal class Cst
             if (c == '-') return new ListItemLine { Indentation = indentation, Value = value };
             if (c == ':') return new KeyItemLine { Indentation = indentation, Value = value };
         }
-        if (line.EndsWith(':'))
-        {
-            return new DictionaryItemLine { Indentation = indentation, Key = line[indentation..^1].TrimEnd(), Value = "" };
-        }
         var colonSpaceIndex = line.IndexOf(": ", indentation);
         if (colonSpaceIndex > -1)
         {
             var key = line[indentation..colonSpaceIndex];
             value = line[(colonSpaceIndex + 2)..];
             return new DictionaryItemLine { Indentation = indentation, Key = key.TrimEnd(), Value = value };
+        }
+        if (line.EndsWith(':'))
+        {
+            return new DictionaryItemLine { Indentation = indentation, Key = line[indentation..^1].TrimEnd(), Value = "" };
         }
         return new ErrorLine { Indentation = indentation, Value = line[indentation..] };
     }
@@ -365,9 +371,9 @@ internal class Cst
             try
             {
                 Dictionary<string, JsonNode> props = [];
-                var lines = ReadLinesOfType<KeyItemOrDictionaryItemLine>();
+                var dictLines = ReadLinesOfType<KeyItemOrDictionaryItemLine>();
                 List<string> keyLines = [];
-                foreach (var line in lines)
+                foreach (var line in dictLines)
                 {
                     if (line is DictionaryItemLine dil)
                     {
@@ -376,7 +382,7 @@ internal class Cst
                             props.Add(keyLines.JoinLines(), JsonValue.Create(""));
                             keyLines.Clear();
                         }
-                        props.Add(dil.Key, ReadListOrDictionaryValue(dil));
+                        props.Add(dil.Key, ReadListOrDictionaryValue(dil) ?? JsonValue.Create(""));
 
                     }
                     if (line is KeyItemLine kil)
@@ -392,20 +398,20 @@ internal class Cst
                 }
                 if (keyLines.Any())
                 {
-                    props.Add(keyLines.JoinLines(), JsonValue.Create(""));
+                    throw new NestedTextDeserializeException("Multiline key requires value", lines[pointer - 1].LineNumber, lines[pointer - 1].Indentation + 1);
                 }
                 return props.Any() ? new JsonObject(props) : null;
             }
             catch (ArgumentException ex)
             {
-                throw new NestedTextDeserializeException("Duplicate key", pointer, lines[pointer-1].Indentation + 1);
+                throw new NestedTextDeserializeException("Duplicate key", lines[pointer - 1].LineNumber, lines[pointer-1].Indentation + 1);
             }
         }
         JsonNode? ReadValue()
         {
             if (pointer >= lines.Count)
             {
-                return JsonValue.Create("");
+                return null;
             }
             var parentIndentation = pointer == 0 ? -1 : lines[pointer-1].Indentation;
             var firstLine = lines[pointer];
@@ -414,7 +420,7 @@ internal class Cst
             {
                 throw new NestedTextDeserializeException("Unexpected indentation.", 1, 1);
             }
-            if (indentation <= parentIndentation) return JsonValue.Create("");
+            if (indentation <= parentIndentation) return null;
             JsonNode? result = ReadInlineValue() ?? ReadStringValue() ?? ReadListValue() ?? ReadDictionaryValue();
             if (result != null && pointer < lines.Count && lines[pointer].Indentation > parentIndentation)
             {

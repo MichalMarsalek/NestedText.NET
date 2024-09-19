@@ -28,6 +28,11 @@ public class NestedTextSerializerOptions
     public bool EmitTaglessStringLines { get; set; } = false;
 
     /// <summary>
+    /// Whether to use a tagless strings when parsing.
+    /// </summary>
+    public bool ParseTaglessStringLines { get; set; } = true;
+
+    /// <summary>
     /// Whether to automatically support conversion between null, integers, doubles & booleans and their string representations.
     /// </summary>
     public bool UseDefaultConverters { get; set; } = false;
