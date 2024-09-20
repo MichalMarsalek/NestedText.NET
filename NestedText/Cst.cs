@@ -173,7 +173,8 @@ internal class Cst
     {
         int pointer = 0;
         char Peek()
-        {
+        {            
+            while (pointer < content.Length && char.IsWhiteSpace(content[pointer])) pointer++;
             if (pointer >= content.Length)
             {
                 throw new NestedTextDeserializeException($"Unexpected end of inline value.", lineNumber, columnNumber + pointer);
@@ -182,13 +183,14 @@ internal class Cst
         }
         void ReadExpected(char c)
         {
+            while (pointer < content.Length && char.IsWhiteSpace(content[pointer])) pointer++;
             if (pointer >= content.Length)
             {
                 throw new NestedTextDeserializeException($"Unexpected end of inline value, expected '{c}'.", lineNumber, columnNumber + pointer);
             }
             if (content[pointer] != c)
             {
-                throw new NestedTextDeserializeException($"Unexpected {content[pointer]}, expected '{c}'.", lineNumber, columnNumber + pointer);
+                throw new NestedTextDeserializeException($"Unexpected '{content[pointer]}', expected '{c}'.", lineNumber, columnNumber + pointer);
             }
             pointer++;
         }
@@ -207,7 +209,7 @@ internal class Cst
             if (c == '{')
             {
                 pointer++;
-                if (Peek() == '}') {
+                if (pointer < content.Length && content[pointer] == '}') {
                     pointer++;
                     return new JsonObject();
                 }
@@ -230,10 +232,10 @@ internal class Cst
             if (c == '[')
             {
                 pointer++;
-                if (Peek() == ']')
+                if (pointer < content.Length && content[pointer] == ']')
                 {
                     pointer++;
-                    return new JsonObject();
+                    return new JsonArray();
                 }
                 List<JsonNode> items = [ReadValue(isInsideDictionary)];
                 while (Peek() == ',')
@@ -245,13 +247,14 @@ internal class Cst
 
                 return new JsonArray(items.ToArray());
             }
-            if (!c.IsValidInlineChar(isInsideDictionary))
+            /*if (!c.IsValidInlineChar(isInsideDictionary))
             {
                 throw new NestedTextDeserializeException($"Expected string value, but got '{Peek()}'.", lineNumber, columnNumber + pointer);
-            }
+            }*/
             return JsonValue.Create(ReadString(isInsideDictionary).Trim());
         }
         var result = ReadValue(false);
+        while (pointer < content.Length && char.IsWhiteSpace(content[pointer])) pointer++;
         if (pointer != content.Length)
         {
             throw new NestedTextDeserializeException($"Unexpected characters following an inline value.", lineNumber, columnNumber + pointer);
@@ -351,7 +354,7 @@ internal class Cst
         }
         JsonNode? ReadListOrDictionaryValue(ValueLine line)
         {
-            if (line.Value == "") return ReadValue();
+            if (line.Value == "") return ReadValue() ?? JsonValue.Create("");
             List<ValueLine> resultLines = [line, .. ReadLinesOfType<TaglessStringItemLine>()];
             return JsonValue.Create(resultLines.JoinLinesValues());
         }
