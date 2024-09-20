@@ -6,7 +6,7 @@ internal static class Extensions
         => !value.Contains('\n') && !value.Contains('\n');
 
     internal static IEnumerable<string> GetLines(this string value)
-        => value.Split(["\n", "\r\n"], StringSplitOptions.None);
+        => value.Split(["\n", "\r\n", "\r"], StringSplitOptions.None);
 
     internal static bool IsValidTaglessStringValue(this IEnumerable<string> value)
         => value.First() != "" && value.Skip(1).All(x => x != "" && x[0] != ' ');

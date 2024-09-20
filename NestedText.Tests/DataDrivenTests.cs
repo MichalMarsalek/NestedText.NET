@@ -62,7 +62,7 @@ public class DataDrivenTests
                 {
                     var actual = act.Should().Throw<NestedTextDeserializeException>().Which;
                     actual.Line.Should().Be(loadError.LineNo + 1);
-                    actual.Column.Should().Be(loadError.ColNo + 1);
+                    actual.Column.Should().Be((loadError.ColNo ?? 0) + 1);
                 }
             }
         }
@@ -100,7 +100,7 @@ public class DataDrivenTests
         [JsonPropertyName("lineno")]
         public int LineNo { get; set; }
         [JsonPropertyName("colno")]
-        public int ColNo { get; set; }
+        public int? ColNo { get; set; }
         public string Message { get; set; }
     }
 }

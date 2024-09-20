@@ -421,7 +421,7 @@ internal class Cst
             var indentation = firstLine.Indentation;
             if (pointer == 0 && indentation > 0)
             {
-                throw new NestedTextDeserializeException("Unexpected indentation.", 1, 1);
+                throw new NestedTextDeserializeException("Unexpected indentation.", lines[pointer].LineNumber, 1);
             }
             if (indentation <= parentIndentation) return null;
             JsonNode? result = ReadInlineValue() ?? ReadStringValue() ?? ReadListValue() ?? ReadDictionaryValue();
@@ -432,7 +432,7 @@ internal class Cst
             return result;
         }
         var result = ReadValue() ?? JsonValue.Create("");
-        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", Lines[pointer].LineNumber, Lines[pointer].Indentation + 1);
+        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", lines[pointer].LineNumber, lines[pointer].Indentation + 1);
         return result;
     }
 }
