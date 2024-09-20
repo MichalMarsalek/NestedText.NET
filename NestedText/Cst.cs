@@ -148,7 +148,7 @@ internal class Cst
                     if (i > 0) stringBuilder.Append(", ");
                     AppendInlineValue(stringBuilder, child);
                 }
-                stringBuilder.Append("}");
+                stringBuilder.Append("]");
                 break;
             case JsonValueKind.Object:
                 stringBuilder.Append("{");
@@ -468,7 +468,11 @@ internal class CommentLine : ValueLine
 }
 internal class StringItemLine : ValueLine
 {
-    protected override string Tag => "> ";
+    protected override string Tag => ">";
+    protected override string GetStringFollowingTag()
+    {
+        return (Value == "" ? "" : " ") + Value;
+    }
 }
 internal class TaglessStringItemLine : ValueLine
 {

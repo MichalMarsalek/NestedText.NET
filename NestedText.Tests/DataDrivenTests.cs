@@ -31,7 +31,7 @@ public class DataDrivenTests
             return content == null ? null : Read(content) ?? content;
         }
 
-        T? ReadJson<T>(string file)
+        T? ReadJson<T>(string file, bool overwriteNewlines = false)
         {
             var content = Read(file);
             if (content == null)
@@ -39,14 +39,14 @@ public class DataDrivenTests
                 return default;
             }
             // hack to fix newlines inside of json strings
-            content = content.Replace("\\n", Environment.NewLine.Replace("\n", "\\n").Replace("\r", "\\r"));
+            if (overwriteNewlines) content = content.Replace("\\n", Environment.NewLine.Replace("\n", "\\n").Replace("\r", "\\r"));
             return content == null ? default : JsonSerializer.Deserialize<T>(content);
         }
 
         if (kind == "load")
         {
             var loadIn = Read("load_in.nt");
-            var loadOut = ReadJson<JsonNode>("load_out.json");
+            var loadOut = ReadJson<JsonNode>("load_out.json", true);
             var loadError = ReadJson<ErrorDescription>("load_err.json");
 
             if (loadIn != null)
