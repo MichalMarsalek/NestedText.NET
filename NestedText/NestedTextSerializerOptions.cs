@@ -36,4 +36,11 @@ public class NestedTextSerializerOptions
     /// Whether to automatically support conversion between null, integers, doubles & booleans and their string representations.
     /// </summary>
     public bool UseDefaultConverters { get; set; } = false;
+
+    /// <summary>
+    /// How to interpret an empty document.
+    /// </summary>
+    public EmptyType EmptyType { get; set; } = EmptyType.Dictionary;
 }
+
+public enum EmptyType { String, List, Dictionary }

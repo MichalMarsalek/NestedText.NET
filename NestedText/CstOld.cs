@@ -4,13 +4,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace NestedText;
+namespace NestedText.Old;
 
-internal class Cst
+internal class CstOld
 {
     public List<Line> Lines { get; private set; }
 
-    public Cst(IEnumerable<Line> lines)
+    public CstOld(IEnumerable<Line> lines)
     {
         Lines = lines.ToList();
         var lineNumber = 1;
@@ -20,14 +20,14 @@ internal class Cst
         }
     }
 
-    public Cst Transform(NestedTextSerializerOptions options)
+    public CstOld Transform(NestedTextSerializerOptions options)
     {
         throw new NotImplementedException();
     }
 
     public override string ToString() => Lines.Select(x => x.ToString()).JoinLines() + Environment.NewLine;
 
-    public static Cst FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
+    public static CstOld FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
     {
         List<Line> lines = new();
         bool IsValidInlineValue(JsonNode node, int? maxDepth, bool isInsideDictionary)
@@ -132,7 +132,7 @@ internal class Cst
             }
         }
         ProcessNode(node, 0);
-        return new Cst(lines);
+        return new CstOld(lines);
     }
     private static void AppendInlineValue(StringBuilder stringBuilder, JsonNode node)
     {
@@ -262,7 +262,7 @@ internal class Cst
         return result;
     }
 
-    public static Cst Parse(string source, NestedTextSerializerOptions? options = null)
+    public static CstOld Parse(string source, NestedTextSerializerOptions? options = null)
     {
         options ??= new();
         List<Line> lines = [];
@@ -270,7 +270,7 @@ internal class Cst
         {
             lines.Add(ParseLine(line, options.ParseTaglessStringLines ? lines.LastOrDefault() : null));
         }
-        return new Cst(lines);
+        return new CstOld(lines);
     }
 
     private static Line ParseLine(string line, Line? previous)
