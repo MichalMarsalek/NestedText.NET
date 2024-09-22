@@ -7,14 +7,3 @@ public class NestedTextDeserializeException : Exception
     public required ParsingError FirstError { get; set; }
     public required IEnumerable<ParsingError> OtherErrors { get; set; }
 }
-
-public class NestedTextDeserializeExceptionOld : Exception
-{
-    public NestedTextDeserializeExceptionOld(string message, int line, int column) : base(message)
-    {
-        Line = line;
-        Column = column;
-    }
-    public int Line { get; set; }
-    public int Column { get; set; }
-}
