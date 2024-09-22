@@ -16,7 +16,7 @@ public static class NestedTextSerializer
     /// <returns>Formatted source.</returns>
     public static string Format(string source, NestedTextSerializerOptions? options = null)
     {
-        return CstOld.Parse(source, options).Transform(options ?? new()).ToString();
+        return Parser.Parse(source, options).Transform(options ?? new(), null).ToString();
     }
 
     /// <summary>
@@ -30,9 +30,9 @@ public static class NestedTextSerializer
     {
         if (data is JsonNode node)
         {
-            return CstOld.FromJsonNode(node, options ?? new()).ToString();
+            return ValueNode.FromJsonNode(node, options ?? new()).ToString();
         }
-        return CstOld.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
+        return ValueNode.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
     }
 
     /// <summary>
@@ -44,7 +44,18 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        var jsonNode = CstOld.Parse(data, options).ToJsonNode();
+        var cst = Parser.Parse(data, options);
+        var errors = cst.Errors.GetEnumerator();
+        if (errors.MoveNext())
+        {
+            throw new NestedTextDeserializeException
+            {
+                FirstError = errors.Current,
+                OtherErrors = errors.Iterate()
+            };
+        }
+
+        var jsonNode = cst.ToJsonNode();
         if (jsonNode is T result)
         {
             return result;

@@ -14,7 +14,7 @@ internal static class Extensions
     internal static string JoinLines(this IEnumerable<string> value)
         => string.Join(Environment.NewLine, value);
 
-    internal static string JoinLinesValues(this IEnumerable<ValueLine> value)
+    internal static string JoinLinesValues(this IEnumerable<NestedText.Old.ValueLine> value)
         => string.Join(Environment.NewLine, value.Select(x => x.Value));
 
     internal static bool IsValidInlineChar(this char value, bool isInsideDictionary)
@@ -25,4 +25,10 @@ internal static class Extensions
 
     internal static bool IsValidKey(this string v)
         => v != "" && v[0] != '[' && v[0] != '{' && !char.IsWhiteSpace(v[0]) && v[0] != '#' && v.All(x => x != '\n' && x != '\r') && !v.Contains("- ") && !v.Contains("> ") && !v.Contains(": ");
+
+    internal static IEnumerable<T> Iterate<T>(this IEnumerator<T> enumerator)
+    {
+        while (enumerator.MoveNext())
+            yield return enumerator.Current;
+    }
 }

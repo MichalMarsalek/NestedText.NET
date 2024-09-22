@@ -61,8 +61,8 @@ public class DataDrivenTests
                 else if (loadError != null)
                 {
                     var actual = act.Should().Throw<NestedTextDeserializeException>().Which;
-                    actual.Line.Should().Be(loadError.LineNo + 1);
-                    actual.Column.Should().Be((loadError.ColNo ?? 0) + 1);
+                    actual.FirstError.LineNumber.Should().Be(loadError.LineNo + 1);
+                    actual.FirstError.ColumnNumber.Should().Be((loadError.ColNo ?? 0) + 1);
                 }
             }
         }

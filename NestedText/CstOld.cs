@@ -177,7 +177,7 @@ internal class CstOld
             while (pointer < content.Length && char.IsWhiteSpace(content[pointer])) pointer++;
             if (pointer >= content.Length)
             {
-                throw new NestedTextDeserializeException($"Unexpected end of inline value.", lineNumber, columnNumber + pointer);
+                throw new NestedTextDeserializeExceptionOld($"Unexpected end of inline value.", lineNumber, columnNumber + pointer);
             }
             return content[pointer];
         }
@@ -186,11 +186,11 @@ internal class CstOld
             while (pointer < content.Length && char.IsWhiteSpace(content[pointer])) pointer++;
             if (pointer >= content.Length)
             {
-                throw new NestedTextDeserializeException($"Unexpected end of inline value, expected '{c}'.", lineNumber, columnNumber + pointer);
+                throw new NestedTextDeserializeExceptionOld($"Unexpected end of inline value, expected '{c}'.", lineNumber, columnNumber + pointer);
             }
             if (content[pointer] != c)
             {
-                throw new NestedTextDeserializeException($"Unexpected '{content[pointer]}', expected '{c}'.", lineNumber, columnNumber + pointer);
+                throw new NestedTextDeserializeExceptionOld($"Unexpected '{content[pointer]}', expected '{c}'.", lineNumber, columnNumber + pointer);
             }
             pointer++;
         }
@@ -257,7 +257,7 @@ internal class CstOld
         while (pointer < content.Length && char.IsWhiteSpace(content[pointer])) pointer++;
         if (pointer != content.Length)
         {
-            throw new NestedTextDeserializeException($"Unexpected characters following an inline value.", lineNumber, columnNumber + pointer);
+            throw new NestedTextDeserializeExceptionOld($"Unexpected characters following an inline value.", lineNumber, columnNumber + pointer);
         }
         return result;
     }
@@ -324,7 +324,7 @@ internal class CstOld
         var errorLine = Lines.OfType<ErrorLine>().FirstOrDefault();
         if (errorLine != null)
         {
-            throw new NestedTextDeserializeException("Unexpected line.", errorLine.LineNumber, errorLine.Indentation + 1);
+            throw new NestedTextDeserializeExceptionOld("Unexpected line.", errorLine.LineNumber, errorLine.Indentation + 1);
         }
         List<Line> lines = Lines.Where(x => x is not BlankLine && x is not CommentLine).ToList();
         var pointer = 0;
@@ -401,13 +401,13 @@ internal class CstOld
                 }
                 if (keyLines.Any())
                 {
-                    throw new NestedTextDeserializeException("Multiline key requires value", lines[pointer - 1].LineNumber, lines[pointer - 1].Indentation + 1);
+                    throw new NestedTextDeserializeExceptionOld("Multiline key requires value", lines[pointer - 1].LineNumber, lines[pointer - 1].Indentation + 1);
                 }
                 return props.Any() ? new JsonObject(props) : null;
             }
             catch (ArgumentException ex)
             {
-                throw new NestedTextDeserializeException("Duplicate key", lines[pointer - 1].LineNumber, lines[pointer-1].Indentation + 1);
+                throw new NestedTextDeserializeExceptionOld("Duplicate key", lines[pointer - 1].LineNumber, lines[pointer-1].Indentation + 1);
             }
         }
         JsonNode? ReadValue()
@@ -421,18 +421,18 @@ internal class CstOld
             var indentation = firstLine.Indentation;
             if (pointer == 0 && indentation > 0)
             {
-                throw new NestedTextDeserializeException("Unexpected indentation.", lines[pointer].LineNumber, 1);
+                throw new NestedTextDeserializeExceptionOld("Unexpected indentation.", lines[pointer].LineNumber, 1);
             }
             if (indentation <= parentIndentation) return null;
             JsonNode? result = ReadInlineValue() ?? ReadStringValue() ?? ReadListValue() ?? ReadDictionaryValue();
             if (result != null && pointer < lines.Count && lines[pointer].Indentation > parentIndentation)
             {
-                throw new NestedTextDeserializeException("Unexpected indentation.", lines[pointer].LineNumber, lines[pointer].Indentation < indentation ? Math.Max(0,parentIndentation) + 1 : indentation + 1);
+                throw new NestedTextDeserializeExceptionOld("Unexpected indentation.", lines[pointer].LineNumber, lines[pointer].Indentation < indentation ? Math.Max(0,parentIndentation) + 1 : indentation + 1);
             }
             return result;
         }
         var result = ReadValue() ?? JsonValue.Create("");
-        if (pointer != lines.Count) throw new NestedTextDeserializeException($"Unexpected lines.", lines[pointer].LineNumber, lines[pointer].Indentation + 1);
+        if (pointer != lines.Count) throw new NestedTextDeserializeExceptionOld($"Unexpected lines.", lines[pointer].LineNumber, lines[pointer].Indentation + 1);
         return result;
     }
 }
