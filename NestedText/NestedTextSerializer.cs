@@ -45,7 +45,7 @@ public static class NestedTextSerializer
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
         var cst = Parser.Parse(data, options);
-        var errors = cst.Errors.GetEnumerator();
+        var errors = (cst.Indentation > 0 ? new ParsingError[] { new(1, 1, "Unexpected indentation.") }.Concat(cst.Errors) : cst.Errors).GetEnumerator();
         if (errors.MoveNext())
         {
             throw new NestedTextDeserializeException

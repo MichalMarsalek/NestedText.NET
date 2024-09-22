@@ -58,6 +58,7 @@ internal static class Parser
                 }
             }
         }
+        multilinesStack.Peek().AddRange(toBePlacedIgnoredLines);
 
         while (true)
         {

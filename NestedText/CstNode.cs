@@ -178,7 +178,7 @@ internal class BlockNode : CstNode
                         props.Add(keyLines.JoinLines(), JsonValue.Create(""));
                         keyLines.Clear();
                     }
-                    props.Add(din.Key, din.Nested?.ToJsonNode() ?? JsonValue.Create(""));
+                    props.Add(din.Key, din.ToJsonNode());
 
                 }
                 if (line is KeyItemNode kin)
@@ -396,6 +396,29 @@ internal class DictionaryItemNode : DictionaryLineNode
 {
     public required string Key { get; set; }
     public string? RestOfLine { get; set; }
+
+    public override IEnumerable<ParsingError> Errors
+    {
+        get
+        {
+            if (RestOfLine != null && Nested.Kind != null && Nested.Kind != MultilineKind.TaglessString)
+            {
+                return AllNestedToErrors(Indentation);
+            }
+            return Nested.Errors;
+        }
+    }
+    public JsonNode ToJsonNode()
+    {
+        var nested = Nested.ToJsonNode();
+        if (RestOfLine == null)
+        {
+            return nested ?? JsonValue.Create("");
+        }
+        if (nested == null) return JsonValue.Create(RestOfLine);
+        return JsonValue.Create(RestOfLine + nested.GetValue<string>());
+    }
+
     protected internal override StringBuilder Append(StringBuilder builder)
     {
         AppendIndentation(builder).Append(Key).AppendLine(RestOfLine == null ? ":" : ": " + RestOfLine);
