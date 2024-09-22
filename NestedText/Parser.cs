@@ -4,7 +4,7 @@ namespace NestedText;
 
 internal static class Parser
 {
-    internal static ValueNode Parse(string source, NestedTextSerializerOptions? options = null)
+    internal static BlockNode Parse(string source, NestedTextSerializerOptions? options = null)
     {
         options ??= new();
         var multilinesStack = new Stack<List<LineNode>>();
@@ -29,27 +29,28 @@ internal static class Parser
             {
                 var currentMultiline = multilinesStack.Peek();
                 var currentIndent = indentStack.Peek();
+
+                if (currentIndent == 0 && currentMultiline.Count == 0)
+                {
+                    indentStack.Pop();
+                    indentStack.Push(currentIndent = lineIndent);
+                }
+
                 while (lineIndent < currentIndent && indentStack.Any())
                 {
                     var terminatedMultiline = multilinesStack.Pop();
                     currentMultiline = multilinesStack.Peek();
                     indentStack.Pop();
                     currentIndent = indentStack.Peek();
-                    currentMultiline.Last().Nested = new ValueNode(terminatedMultiline);
+                    var currentMultilineLast = currentMultiline.Last();
+                    currentMultilineLast.Nested = new BlockNode(terminatedMultiline);
                 }
 
-
-                if (lineIndent > currentIndent)
+                if (lineIndent > currentIndent && !currentMultiline.Last().Nested.Lines.Any())
                 {
-                    if (currentIndent == 0 && currentMultiline.Count == 0)
-                    {
-                        indentStack.Pop();
-                        indentStack.Push(currentIndent = lineIndent);
-                    }
-
                     multilinesStack.Push(new List<LineNode>(toBePlacedIgnoredLines) { lastLine });
                     toBePlacedIgnoredLines.Clear();
-                    indentStack.Push(currentIndent);
+                    indentStack.Push(lineIndent);
                 }
                 else
                 {
@@ -61,8 +62,8 @@ internal static class Parser
         while (true)
         {
             var terminatedMultiline = multilinesStack.Pop();
-            if (!multilinesStack.Any()) return new ValueNode(terminatedMultiline);
-            multilinesStack.Peek().Last().Nested = new ValueNode(terminatedMultiline);
+            if (!multilinesStack.Any()) return new BlockNode(terminatedMultiline);
+            multilinesStack.Peek().Last().Nested = new BlockNode(terminatedMultiline);
         }
     }
 

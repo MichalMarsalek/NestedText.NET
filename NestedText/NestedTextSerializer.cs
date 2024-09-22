@@ -30,9 +30,9 @@ public static class NestedTextSerializer
     {
         if (data is JsonNode node)
         {
-            return ValueNode.FromJsonNode(node, options ?? new()).ToString();
+            return BlockNode.FromJsonNode(node, options ?? new()).ToString();
         }
-        return ValueNode.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
+        return BlockNode.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
     }
 
     /// <summary>

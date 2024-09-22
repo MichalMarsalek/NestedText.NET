@@ -37,14 +37,14 @@ internal abstract class LineNode : CstNode
 {
     public int Indentation { get; set; }
     public int LineNumber { get; set; }
-    public ValueNode Nested { get; set; } = new ValueNode([]);
+    public BlockNode Nested { get; set; } = new BlockNode([]);
     public override IEnumerable<ParsingError> Errors => Nested?.Errors ?? Enumerable.Empty<ParsingError>();
     protected StringBuilder AppendIndentation(StringBuilder builder)
         => builder.Append(new string(' ', Indentation));
-    internal ParsingError ToError(string message)
-        => new ParsingError(LineNumber, Indentation + 1, message);
-    protected IEnumerable<ParsingError> AllNestedToErrors()
-        => Nested.Lines.Where(line => line is not BlankLineNode && line is not CommentLineNode).Select(x => x.ToError("Unexpected indentation."));
+    internal ParsingError ToError(string message, int? indentation = null)
+        => new ParsingError(LineNumber, (indentation ?? Indentation) + 1, message);
+    protected IEnumerable<ParsingError> AllNestedToErrors(int expectedIndentation)
+        => Nested.Lines.Where(line => line is not BlankLineNode && line is not CommentLineNode).Select(x => x.ToError("Unexpected indentation.", expectedIndentation));
 }
 
 internal class IgnoredLineNode : LineNode
@@ -71,26 +71,26 @@ internal class ErrorLineNode : IgnoredLineNode
     public required string Message { get; set; }
 }
 
-internal class ValueNode : CstNode
+internal class BlockNode : CstNode
 {
     public IReadOnlyCollection<LineNode> Lines { get; private set; } = [];
-    public ValueKind? ValueKind { get; private set; }
+    public MultilineKind? Kind { get; private set; }
     public int? Indentation { get; private set; }
-    public ValueNode(IEnumerable<LineNode>? lines = null)
+    public BlockNode(IEnumerable<LineNode>? lines = null)
     {
         Lines = lines?.ToList() ?? [];
         foreach (var line in Lines)
         {
-            ValueKind = line switch
+            Kind = line switch
             {
-                StringLineNode => NestedText.ValueKind.String,
-                TaglessStringLineNode => NestedText.ValueKind.TaglessString,
-                ListItemNode => NestedText.ValueKind.List,
-                DictionaryItemNode => NestedText.ValueKind.Dictionary,
-                KeyItemNode => NestedText.ValueKind.Dictionary,
+                StringLineNode => MultilineKind.String,
+                TaglessStringLineNode => MultilineKind.TaglessString,
+                ListItemNode => MultilineKind.List,
+                DictionaryItemNode => MultilineKind.Dictionary,
+                KeyItemNode => MultilineKind.Dictionary,
                 _ => null
             };
-            if (ValueKind != null)
+            if (Kind != null)
             {
                 Indentation = line.Indentation;
                 break;
@@ -102,28 +102,30 @@ internal class ValueNode : CstNode
     {
         get
         {
-            var kind = ValueKind;
+            var kind = Kind;
             foreach(var line in Lines)
             {
                 if (line is ErrorLineNode errorLine) yield return errorLine.ToError(errorLine.Message);
                 if (line is IgnoredLineNode) continue;
 
-                if (kind == NestedText.ValueKind.String)
+                if (line.Indentation != Indentation) yield return line.ToError("Unexpected indentation.", Indentation);
+                if (kind == MultilineKind.String)
                 {
                     if (line is not StringLineNode) yield return line.ToError("Unexpected node.");
                 }
-                else if (kind == NestedText.ValueKind.TaglessString)
+                else if (kind == MultilineKind.TaglessString)
                 {
                     if (line is not TaglessStringLineNode) yield return line.ToError("Unexpected node.");
                 }
-                else if (kind == NestedText.ValueKind.List)
+                else if (kind == MultilineKind.List)
                 {
                     if (line is not ListItemNode) yield return line.ToError("Unexpected node.");
                 }
-                else if (kind == NestedText.ValueKind.Dictionary)
+                else if (kind == MultilineKind.Dictionary)
                 {
                     if (line is not DictionaryItemNode && line is not KeyItemNode) yield return line.ToError("Unexpected node.");
                 }
+                foreach (var lineError in line.Errors) yield return lineError;
             }
         }
     }
@@ -149,20 +151,20 @@ internal class ValueNode : CstNode
     /// <returns></returns>
     public JsonNode? ToJsonNode()
     {
-        var kind = ValueKind;
-        if (kind == NestedText.ValueKind.String)
+        var kind = Kind;
+        if (kind == MultilineKind.String)
         {
             return JsonValue.Create(Lines.OfType<StringLineNode>().Select(x => x.Value).JoinLines());
         }
-        if (kind == NestedText.ValueKind.TaglessString)
+        if (kind == MultilineKind.TaglessString)
         {
             return JsonValue.Create(Lines.OfType<TaglessStringLineNode>().Select(x => x.Value).JoinLines());
         }
-        if (kind == NestedText.ValueKind.List)
+        if (kind == MultilineKind.List)
         {
             return new JsonArray(Lines.OfType<ListItemNode>().Select(x => x.ToJsonNode()).ToArray());
         }
-        if (kind == NestedText.ValueKind.Dictionary)
+        if (kind == MultilineKind.Dictionary)
         {
             Dictionary<string, JsonNode> props = [];
             var dictLines = Lines.OfType<DictionaryLineNode>();
@@ -202,7 +204,7 @@ internal class ValueNode : CstNode
     /// <summary>
     /// Creates a CST from JsonNode.
     /// </summary>
-    public static ValueNode FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
+    public static BlockNode FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
     {
         bool IsValidInlineValue(JsonNode node, int? maxDepth, bool isInsideDictionary)
         {
@@ -243,11 +245,11 @@ internal class ValueNode : CstNode
             throw new NestedTextSerializeException($"Unexpected kind {node.GetValueKind()}.");
         }
 
-        ValueNode FromJsonNodeImpl(JsonNode node, int indentation)
+        BlockNode FromJsonNodeImpl(JsonNode node, int indentation)
         {
             if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)
             {
-                return new ValueNode(value.GetValue<string>()!.GetLines().Select(x => new StringLineNode
+                return new BlockNode(value.GetValue<string>()!.GetLines().Select(x => new StringLineNode
                 {
                     Indentation = indentation,
                     Value = x
@@ -255,11 +257,11 @@ internal class ValueNode : CstNode
             }
             if ((node is JsonArray || node is JsonObject) && IsValidInlineValue(node, options.MaxDepthToInline, false))
             {
-                return new ValueNode([InlineFromJsonNode(node)]);
+                return new BlockNode([InlineFromJsonNode(node)]);
             }
             if (node is JsonArray array)
             {
-                return new ValueNode(
+                return new BlockNode(
                     array.Select(x => {
                         if (x is JsonValue xValue && xValue.GetValueKind() == JsonValueKind.String)
                         {
@@ -280,7 +282,7 @@ internal class ValueNode : CstNode
             }
             if (node is JsonObject obj)
             {
-                return new ValueNode(
+                return new BlockNode(
                     obj.SelectMany<KeyValuePair<string, JsonNode?>, LineNode>(prop =>
                     {
                         if (prop.Key.IsValidKey())
@@ -325,7 +327,7 @@ internal class ValueNode : CstNode
 internal class StringLineNode : LineNode
 {
     public required string Value { get; set; }
-    public override IEnumerable<ParsingError> Errors => AllNestedToErrors();
+    public override IEnumerable<ParsingError> Errors => AllNestedToErrors(Indentation);
 
     protected internal override StringBuilder Append(StringBuilder builder)
         => AppendIndentation(builder).Append(Value == "" ? ">" : "> ").AppendLine(Value);
@@ -339,7 +341,7 @@ internal class StringLineNode : LineNode
 internal class TaglessStringLineNode : LineNode
 {
     public required string Value { get; set; }
-    public override IEnumerable<ParsingError> Errors => AllNestedToErrors();
+    public override IEnumerable<ParsingError> Errors => AllNestedToErrors(Indentation);
 
     protected internal override StringBuilder Append(StringBuilder builder)
         => AppendIndentation(builder).AppendLine(Value);
@@ -368,8 +370,20 @@ internal class ListItemNode : DictionaryLineNode
     }
     protected internal override StringBuilder Append(StringBuilder builder)
     {
-        AppendIndentation(builder).Append(RestOfLine == null ? "-" : "- " + RestOfLine);
+        AppendIndentation(builder).AppendLine(RestOfLine == null ? "-" : "- " + RestOfLine);
         return Nested?.Append(builder) ?? builder;
+    }
+
+    public override IEnumerable<ParsingError> Errors
+    {
+        get
+        {
+            if (RestOfLine != null && Nested.Kind != null && Nested.Kind != MultilineKind.TaglessString)
+            {
+                return AllNestedToErrors(Indentation);
+            }
+            return Nested.Errors;
+        }
     }
 
     internal override CstNode Transform(NestedTextSerializerOptions options, CstNode? parent)
@@ -384,7 +398,7 @@ internal class DictionaryItemNode : DictionaryLineNode
     public string? RestOfLine { get; set; }
     protected internal override StringBuilder Append(StringBuilder builder)
     {
-        AppendIndentation(builder).Append(Key).Append(RestOfLine == null ? ":" : ": " + RestOfLine);
+        AppendIndentation(builder).Append(Key).AppendLine(RestOfLine == null ? ":" : ": " + RestOfLine);
         return Nested?.Append(builder) ?? builder;
     }
     internal override CstNode Transform(NestedTextSerializerOptions options, CstNode? parent)
@@ -496,4 +510,4 @@ internal class InlineError : Inline
 }
 
 public record ParsingError(int LineNumber, int ColumnNumber, string Message);
-internal enum ValueKind { String, TaglessString, List, Dictionary, Inline }
+internal enum MultilineKind { String, TaglessString, List, Dictionary, Inline }
