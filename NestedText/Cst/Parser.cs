@@ -1,19 +1,17 @@
-﻿using System.Text.Json.Nodes;
-
-namespace NestedText;
+﻿namespace NestedText.Cst;
 
 internal static class Parser
 {
-    internal static BlockNode Parse(string source, NestedTextSerializerOptions? options = null)
+    internal static Block Parse(string source, NestedTextSerializerOptions? options = null)
     {
         options ??= new();
-        var multilinesStack = new Stack<List<LineNode>>();
+        var multilinesStack = new Stack<List<Line>>();
         var indentStack = new Stack<int?>();
-        multilinesStack.Push(new List<LineNode>());
+        multilinesStack.Push(new List<Line>());
         indentStack.Push(0);
         var lineNumber = 0;
-        LineNode? lastLine = null;
-        var toBePlacedIgnoredLines = new List<IgnoredLineNode>();
+        Line? lastLine = null;
+        var toBePlacedIgnoredLines = new List<IgnoredLine>();
         foreach (var rawLine in source.GetLines())
         {
             lineNumber++;
@@ -21,7 +19,7 @@ internal static class Parser
             lastLine.LineNumber = lineNumber;
             lastLine.Indentation = lineIndent;
 
-            if (lastLine is IgnoredLineNode ignoredLine)
+            if (lastLine is IgnoredLine ignoredLine)
             {
                 toBePlacedIgnoredLines.Add(ignoredLine);
             }
@@ -43,12 +41,12 @@ internal static class Parser
                     indentStack.Pop();
                     currentIndent = indentStack.Peek();
                     var currentMultilineLast = currentMultiline.Last();
-                    currentMultilineLast.Nested = new BlockNode(terminatedMultiline);
+                    currentMultilineLast.Nested = new Block(terminatedMultiline);
                 }
 
                 if (lineIndent > currentIndent && !currentMultiline.Last().Nested.Lines.Any())
                 {
-                    multilinesStack.Push(new List<LineNode>(toBePlacedIgnoredLines) { lastLine });
+                    multilinesStack.Push(new List<Line>(toBePlacedIgnoredLines) { lastLine });
                     toBePlacedIgnoredLines.Clear();
                     indentStack.Push(lineIndent);
                 }
@@ -63,12 +61,12 @@ internal static class Parser
         while (true)
         {
             var terminatedMultiline = multilinesStack.Pop();
-            if (!multilinesStack.Any()) return new BlockNode(terminatedMultiline);
-            multilinesStack.Peek().Last().Nested = new BlockNode(terminatedMultiline);
+            if (!multilinesStack.Any()) return new Block(terminatedMultiline);
+            multilinesStack.Peek().Last().Nested = new Block(terminatedMultiline);
         }
     }
 
-    private static LineNode ParseLine(string line, LineNode? previous, out int indentation)
+    private static Line ParseLine(string line, Line? previous, out int indentation)
     {
         indentation = 0;
         while (indentation < line.Length && line[indentation] == ' ')
@@ -77,42 +75,42 @@ internal static class Parser
         }
         if (indentation == line.Length)
         {
-            return new BlankLineNode { Content = "" };
-        }      
+            return new BlankLine { Content = "" };
+        }
         var c = line[indentation];
         if (char.IsWhiteSpace(c))
         {
-            return new ErrorLineNode { Content = line[indentation..], Message = "Only spaces are allowed as indentation." };
+            return new ErrorLine { Content = line[indentation..], Message = "Only spaces are allowed as indentation." };
         }
-        if ((previous is ListItemNode lin && lin.RestOfLine != null && lin.Indentation < indentation)
-            || (previous is DictionaryItemNode din && din.RestOfLine != null && din.Indentation < indentation))
+        if (previous is ListItemLine lin && lin.RestOfLine != null && lin.Indentation < indentation
+            || previous is DictionaryItemLine din && din.RestOfLine != null && din.Indentation < indentation)
         {
-            return new TaglessStringLineNode { Value = line[indentation..] };
+            return new TaglessStringLine { Value = line[indentation..] };
         }
         if (c == '[' || c == '{') return ParseInline(line, indentation, (previous?.LineNumber ?? 0) + 1);
-        if (c == '#') return new CommentLineNode { Content = line[(indentation + 1)..] };
+        if (c == '#') return new CommentLine { Content = line[(indentation + 1)..] };
         string? value = null;
         if (indentation + 1 == line.Length) value = "";
         else if (line[indentation + 1] == ' ') value = line[(indentation + 2)..];
         if (value != null)
         {
-            if (c == '>') return new StringLineNode { Value = value };
-            if (c == '-') return new ListItemNode { RestOfLine = value == "" ? null : value };
-            if (c == ':') return new KeyItemNode { Key = value };
+            if (c == '>') return new StringLine { Value = value };
+            if (c == '-') return new ListItemLine { RestOfLine = value == "" ? null : value };
+            if (c == ':') return new KeyItemLine { Key = value };
         }
         var colonSpaceIndex = line.IndexOf(": ", indentation);
         if (colonSpaceIndex > -1)
         {
             var key = line[indentation..colonSpaceIndex];
             value = line[(colonSpaceIndex + 2)..];
-            return new DictionaryItemNode { Key = key.TrimEnd(), RestOfLine = value == "" ? null : value };
+            return new DictionaryItemLine { Key = key.TrimEnd(), RestOfLine = value == "" ? null : value };
         }
         if (line.EndsWith(':'))
         {
-            return new DictionaryItemNode { Key = line[indentation..^1].TrimEnd(), RestOfLine = null };
+            return new DictionaryItemLine { Key = line[indentation..^1].TrimEnd(), RestOfLine = null };
         }
 
-        return new ErrorLineNode { Message = "Unrecognised line.", Content = line[indentation..] };
+        return new ErrorLine { Message = "Unrecognised line.", Content = line[indentation..] };
     }
 
     private static Inline ParseInline(string source, int indentation, int lineNumber)

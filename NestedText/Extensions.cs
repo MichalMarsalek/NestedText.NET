@@ -28,4 +28,7 @@ internal static class Extensions
         while (enumerator.MoveNext())
             yield return enumerator.Current;
     }
+
+    internal static string? EmptyToNull(this string? value)
+        => value == "" ? null : value;
 }
