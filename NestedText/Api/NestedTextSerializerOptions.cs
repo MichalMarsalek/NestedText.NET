@@ -39,6 +39,8 @@ public class NestedTextSerializerOptions
 
     /// <summary>
     /// How to interpret an empty document.
+    /// This is only relevant in the case of deserializing into a <see cref="System.Text.Json.Nodes.JsonNode"/>.
+    /// In other cases, the type deduced from the output type.
     /// </summary>
     public EmptyType EmptyType { get; set; } = EmptyType.Dictionary;
 }

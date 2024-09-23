@@ -45,6 +45,7 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
+        options ??= new();
         var cst = Parser.Parse(data, options);
         var errors = (cst.Indentation > 0 ? new ParsingError[] { new(1, 1, "Unexpected indentation.") }.Concat(cst.Errors) : cst.Errors).GetEnumerator();
         if (errors.MoveNext())
@@ -59,7 +60,22 @@ public static class NestedTextSerializer
         var jsonNode = cst.ToJsonNode();
         if (jsonNode is T result)
         {
-            return result;
+            return result ?? (T)(options.EmptyType switch
+            {
+                EmptyType.String => (object)JsonValue.Create(""),
+                EmptyType.List => (object)new JsonArray(),
+                EmptyType.Dictionary => (object)new JsonObject()
+            }); ;
+        }
+        if (jsonNode == null)
+        {
+            foreach (var empty in new string[] { "\"\"", "[]", "{}", "null" }) {
+                try
+                {
+                    return JsonSerializer.Deserialize<T>(empty, jsonOptions)!;
+                }
+                catch { }
+            }
         }
         return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
     }
