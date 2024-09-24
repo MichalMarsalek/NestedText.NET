@@ -15,7 +15,7 @@ public class NestedTextSerializerOptions
     /// <summary>
     /// Max depth of a structure to emit as an inline value.
     /// </summary>
-    public int? MaxDepthToInline { get; set; }
+    public int? MaxDepthToInline { get; set; } = 1;
 
     /// <summary>
     /// Max line legth of a line containing an inline value.

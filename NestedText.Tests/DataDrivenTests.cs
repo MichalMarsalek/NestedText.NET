@@ -9,7 +9,7 @@ namespace NestedText.Tests;
 public class DataDrivenTests
 {
     const string OFFICIAL_TESTS_PATH = "official_tests/test_cases";
-    const string CUSTOM_TESTS_PATH = "custom_tests/test_cases";
+    const string CUSTOM_TESTS_PATH = "custom_tests";
 
     [Theory]
     [DdtData(OFFICIAL_TESTS_PATH)]

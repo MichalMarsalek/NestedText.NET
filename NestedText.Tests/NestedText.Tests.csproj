@@ -24,13 +24,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="official_tests/**">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+	  <Content Include="official_tests/**">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="custom_tests/**">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NestedText\NestedText.csproj" />
+	  <ProjectReference Include="..\NestedText\NestedText.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="custom_tests\" />
   </ItemGroup>
 
 </Project>
