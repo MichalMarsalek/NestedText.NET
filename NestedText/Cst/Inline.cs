@@ -11,7 +11,8 @@ internal abstract class Inline : Node
     public string Suffix { get; set; } = "";
     public int ValueStart { get; set; }
     public int ValueEnd { get; set; }
-    public int SuffixNonWhiteSpaceStart => ValueEnd + Suffix.Length - Suffix.TrimStart().Length;
+    public string SuffixNonWhiteSpace => Suffix.TrimStart();
+    public int SuffixNonWhiteSpaceStart => ValueEnd + Suffix.Length - SuffixNonWhiteSpace.Length;
     public abstract JsonNode ToJsonNode();
     public abstract StringBuilder AppendValue(StringBuilder builder);
     internal abstract Inline Transform(NestedTextSerializerOptions options, bool isFirst);

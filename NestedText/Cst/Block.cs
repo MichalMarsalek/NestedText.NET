@@ -188,21 +188,21 @@ internal class Block : Node
             };
         }
 
-        Inline InlineFromJsonNode(JsonNode node, int indentation = 0)
+        Inline InlineFromJsonNode(JsonNode node, int leadingSpaces = 0)
         {
             if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)
             {
-                return new InlineString { LeadingSpaces = 0, Value = value.GetValue<string>() };
+                return new InlineString { LeadingSpaces = leadingSpaces, Value = value.GetValue<string>() };
             }
             if (node is JsonArray array)
             {
-                return new InlineList { LeadingSpaces = 0, Values = array.Select((x,i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
+                return new InlineList { LeadingSpaces = leadingSpaces, Values = array.Select((x,i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
             }
             if (node is JsonObject obj)
             {
                 return new InlineDictionary
                 {
-                    LeadingSpaces = 0,
+                    LeadingSpaces = leadingSpaces,
                     KeyValues = obj.Select((x,i) => new List<Inline>{
                         new InlineString
                         {
@@ -228,7 +228,7 @@ internal class Block : Node
             }
             if ((node is JsonArray || node is JsonObject) && IsValidInlineValue(node, options.MaxDepthToInline, false))
             {
-                return new Block([new InlineLine { Inline = InlineFromJsonNode(node, indentation) }]);
+                return new Block([new InlineLine { Indentation = indentation, Inline = InlineFromJsonNode(node) }]);
             }
             if (node is JsonArray array)
             {
@@ -266,6 +266,7 @@ internal class Block : Node
                                 {
                                     Indentation = indentation,
                                     Key = prop.Key,
+                                    KeyTrailingWhiteSpace = "",
                                     RestOfLine = prop.Value.GetValue<string>().EmptyToNull()
                                 }];
                             }
@@ -275,6 +276,7 @@ internal class Block : Node
                                 {
                                     Indentation = indentation,
                                     Key = prop.Key,
+                                    KeyTrailingWhiteSpace = "",
                                     Nested = FromJsonNodeImpl(prop.Value, indentation + options.Indentation)
                                 }];
                             }

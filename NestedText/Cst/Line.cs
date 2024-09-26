@@ -35,7 +35,7 @@ internal abstract class IgnoredLine : Line
     public override IEnumerable<ParsingError> Errors => [];
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
-        => builder;
+        => builder.Append(Content);
 }
 
 internal class BlankLine : IgnoredLine {
@@ -131,6 +131,7 @@ internal abstract class DictionaryLine : ValueLine { }
 internal class DictionaryItemLine : DictionaryLine
 {
     public required string Key { get; set; }
+    public required string KeyTrailingWhiteSpace { get; set; }
     public string? RestOfLine { get; set; }
 
     public override IEnumerable<ParsingError> Errors
@@ -156,11 +157,12 @@ internal class DictionaryItemLine : DictionaryLine
     }
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
-        => builder.Append(Key).Append(RestOfLine == null ? ":" : ": " + RestOfLine);
+        => builder.Append(Key).Append(KeyTrailingWhiteSpace).Append(RestOfLine == null ? ":" : ": " + RestOfLine);
     internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new DictionaryItemLine
     {
         LineNumber = LineNumber,
         Indentation = indentation,
+        KeyTrailingWhiteSpace = KeyTrailingWhiteSpace,
         Nested = Nested.Transform(options, indentation + options.Indentation),
         RestOfLine = RestOfLine,
         Key = Key

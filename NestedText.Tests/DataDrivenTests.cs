@@ -66,6 +66,20 @@ public class DataDrivenTests
                 }
             }
         }
+        if (kind == "parsemit")
+        {
+            foreach (var filename in new string[] { "load_in.nt", "format_in.nt" })
+            {
+                var loadIn = Read(filename);
+
+                if (loadIn != null)
+                {
+                    loadIn = loadIn.GetLines().JoinLines();
+                    var formatted = NestedTextSerializer.Format(loadIn, new() { FormatOptions = new() { SkipAll = true } });
+                    formatted.Should().BeEquivalentTo(loadIn);
+                }
+            }
+        }
         else if (kind == "dump")
         {
             var dumpIn = ReadJson<JsonNode>("dump_in.json");

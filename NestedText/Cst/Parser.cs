@@ -10,10 +10,12 @@ internal static class Parser
         indentStack.Push(0);
         var lineNumber = 0;
         var toBePlacedIgnoredLines = new List<IgnoredLine>();
-        foreach (var rawLine in source.GetLines())
+        var rawLines = source.GetLines().ToList();
+        if (rawLines.Any() && rawLines.Last() == "") rawLines.RemoveAt(rawLines.Count - 1);
+        foreach (var rawLine in rawLines)
         {
             lineNumber++;
-            var line = ParseLine(rawLine, lineNumber, out var lineIndent);
+            var line = ParseLine(rawLine, out var lineIndent);
             line.LineNumber = lineNumber;
             line.Indentation = lineIndent;
 
@@ -44,6 +46,11 @@ internal static class Parser
                 }
                 else
                 {
+                    if (!currentMultiline.Any())
+                    {
+                        currentMultiline.AddRange(toBePlacedIgnoredLines);
+                        toBePlacedIgnoredLines.Clear();
+                    }
                     currentMultiline.Add(line);
                 }
             }
@@ -58,7 +65,7 @@ internal static class Parser
         }
     }
 
-    private static Line ParseLine(string line, int lineNumber, out int indentation)
+    private static Line ParseLine(string line, out int indentation)
     {
         indentation = 0;
         while (indentation < line.Length && line[indentation] == ' ')
@@ -95,11 +102,16 @@ internal static class Parser
         {
             var key = line[indentation..colonSpaceIndex];
             value = line[(colonSpaceIndex + 2)..];
-            return new DictionaryItemLine { Key = key.TrimEnd(), RestOfLine = value == "" ? null : value };
+            var trimmedKey = key.TrimEnd();
+            var keyTrailingWhiteSpace = key[trimmedKey.Length..];
+            return new DictionaryItemLine { Key = trimmedKey, KeyTrailingWhiteSpace = keyTrailingWhiteSpace, RestOfLine = value == "" ? null : value };
         }
         if (line.EndsWith(':'))
         {
-            return new DictionaryItemLine { Key = line[indentation..^1].TrimEnd(), RestOfLine = null };
+            var key = line[indentation..^1];
+            var trimmedKey = key.TrimEnd();
+            var keyTrailingWhiteSpace = key[trimmedKey.Length..];
+            return new DictionaryItemLine { Key = trimmedKey, KeyTrailingWhiteSpace = keyTrailingWhiteSpace, RestOfLine = null };
         }
 
         return new ErrorLine { Message = "Unrecognised line.", Content = line[indentation..] };
