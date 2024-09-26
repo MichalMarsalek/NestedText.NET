@@ -8,11 +8,6 @@ public class NestedTextSerializerOptions
     public int Indentation { get; set; } = 2;
 
     /// <summary>
-    /// Whether tagless string lines should be indented to be aligned with the first line of the value.
-    /// </summary>
-    public bool AlignTaglessStringLines { get; set; } = false;
-
-    /// <summary>
     /// Max depth of a structure to emit as an inline value.
     /// </summary>
     public int? MaxDepthToInline { get; set; } = 1;
@@ -23,14 +18,9 @@ public class NestedTextSerializerOptions
     public int? MaxLineLengthToInline { get; set; }
 
     /// <summary>
-    /// Whether to use a tagless strings to emit multiline strings.
+    /// Whether to emit strings as part of list/dictionary items if possible.
     /// </summary>
-    public bool EmitTaglessStringLines { get; set; } = false;
-
-    /// <summary>
-    /// Whether to use a tagless strings when parsing.
-    /// </summary>
-    public bool ParseTaglessStringLines { get; set; } = true;
+    public bool UseRestOfLineStrings { get; set; } = true;
 
     /// <summary>
     /// Whether to automatically support conversion between null, integers, doubles & booleans and their string representations.
@@ -43,6 +33,45 @@ public class NestedTextSerializerOptions
     /// In other cases, the type deduced from the output type.
     /// </summary>
     public EmptyType EmptyType { get; set; } = EmptyType.Dictionary;
+
+    /// <summary>
+    /// Defines which syntactical properties should be left intact when formatting a document.
+    /// </summary>
+    public FormatOptions FormatOptions { get; set; } = new();
 }
 
 public enum EmptyType { String, List, Dictionary }
+
+public class FormatOptions
+{
+    /// <summary>
+    /// Whether to keep indentation when formatting a document.
+    /// </summary>
+    public bool SkipIndentation { get; set; } = false;
+
+    /// <summary>
+    /// Whether to keep inline items alignment.
+    /// </summary>
+    public bool SkipInlineItemsAlignment { get; set; } = false;
+
+    /// <summary>
+    /// Whether to keep inline items on a single line.
+    /// </summary>
+    public bool SkipInlineToMultiline { get; set; } = false;
+
+    /// <summary>
+    /// Whether to keep multiline items on multiple lines.
+    /// </summary>
+    public bool SkipMultilineToInline { get; set; } = false;
+
+    /// <summary>
+    /// Whether to keep strings as rest-of-line or string items.
+    /// </summary>
+    public bool SkipRestOfLine { get; set; } = false;
+
+    public bool SkipAll
+    {
+        get => SkipIndentation && SkipInlineItemsAlignment && SkipInlineToMultiline && SkipMultilineToInline && SkipRestOfLine;
+        set => SkipIndentation = SkipInlineItemsAlignment = SkipInlineToMultiline = SkipMultilineToInline = SkipRestOfLine = value;
+    }
+}

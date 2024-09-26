@@ -4,22 +4,20 @@ internal static class Parser
 {
     internal static Block Parse(string source, NestedTextSerializerOptions? options = null)
     {
-        options ??= new();
         var multilinesStack = new Stack<List<Line>>();
         var indentStack = new Stack<int?>();
         multilinesStack.Push(new List<Line>());
         indentStack.Push(0);
         var lineNumber = 0;
-        Line? lastLine = null;
         var toBePlacedIgnoredLines = new List<IgnoredLine>();
         foreach (var rawLine in source.GetLines())
         {
             lineNumber++;
-            lastLine = ParseLine(rawLine, options.ParseTaglessStringLines ? lastLine : null, out var lineIndent);
-            lastLine.LineNumber = lineNumber;
-            lastLine.Indentation = lineIndent;
+            var line = ParseLine(rawLine, lineNumber, out var lineIndent);
+            line.LineNumber = lineNumber;
+            line.Indentation = lineIndent;
 
-            if (lastLine is IgnoredLine ignoredLine)
+            if (line is IgnoredLine ignoredLine)
             {
                 toBePlacedIgnoredLines.Add(ignoredLine);
             }
@@ -27,12 +25,6 @@ internal static class Parser
             {
                 var currentMultiline = multilinesStack.Peek();
                 var currentIndent = indentStack.Peek();
-
-                if (currentIndent == 0 && currentMultiline.Count == 0)
-                {
-                    indentStack.Pop();
-                    indentStack.Push(currentIndent = lineIndent);
-                }
 
                 while (lineIndent < currentIndent && indentStack.Any())
                 {
@@ -44,15 +36,15 @@ internal static class Parser
                     currentMultilineLast.Nested = new Block(terminatedMultiline);
                 }
 
-                if (lineIndent > currentIndent && !currentMultiline.Last().Nested.Lines.Any())
+                if (lineIndent > currentIndent && currentMultiline.Any() && !currentMultiline.Last().Nested.Lines.Any())
                 {
-                    multilinesStack.Push(new List<Line>(toBePlacedIgnoredLines) { lastLine });
+                    multilinesStack.Push(new List<Line>(toBePlacedIgnoredLines) { line });
                     toBePlacedIgnoredLines.Clear();
                     indentStack.Push(lineIndent);
                 }
                 else
                 {
-                    currentMultiline.Add(lastLine);
+                    currentMultiline.Add(line);
                 }
             }
         }
@@ -66,7 +58,7 @@ internal static class Parser
         }
     }
 
-    private static Line ParseLine(string line, Line? previous, out int indentation)
+    private static Line ParseLine(string line, int lineNumber, out int indentation)
     {
         indentation = 0;
         while (indentation < line.Length && line[indentation] == ' ')
@@ -82,12 +74,12 @@ internal static class Parser
         {
             return new ErrorLine { Content = line[indentation..], Message = "Only spaces are allowed as indentation." };
         }
-        if (previous is ListItemLine lin && lin.RestOfLine != null && lin.Indentation < indentation
-            || previous is DictionaryItemLine din && din.RestOfLine != null && din.Indentation < indentation)
+        if (c == '[' || c == '{')
         {
-            return new TaglessStringLine { Value = line[indentation..] };
-        }
-        if (c == '[' || c == '{') return ParseInline(line, indentation, (previous?.LineNumber ?? 0) + 1);
+            var inlineLine = new InlineLine() { Inline = default! };
+            inlineLine.Inline = ParseInline(line, indentation, inlineLine);
+            return inlineLine;
+        } 
         if (c == '#') return new CommentLine { Content = line[(indentation + 1)..] };
         string? value = null;
         if (indentation + 1 == line.Length) value = "";
@@ -113,98 +105,132 @@ internal static class Parser
         return new ErrorLine { Message = "Unrecognised line.", Content = line[indentation..] };
     }
 
-    private static Inline ParseInline(string source, int indentation, int lineNumber)
+    private static Inline ParseInline(string source, int indentation, InlineLine line)
     {
         var pointer = indentation;
         var columnNumber = indentation + 1;
-        char Peek()
+        char? Peek()
         {
-            while (pointer < source.Length && char.IsWhiteSpace(source[pointer])) pointer++;
             if (pointer >= source.Length)
             {
-                throw new NotImplementedException($"Unexpected end of inline value.");
+                return null;
             }
             return source[pointer];
-        }
-        void ReadExpected(char c)
-        {
-            while (pointer < source.Length && char.IsWhiteSpace(source[pointer])) pointer++;
-            if (pointer >= source.Length)
-            {
-                throw new NotImplementedException($"Unexpected end of inline value.");
-            }
-            if (source[pointer] != c)
-            {
-                throw new NotImplementedException($"Unexpected end of inline value.");
-            }
-            pointer++;
         }
         string ReadString(bool isInsideDictionary)
         {
             var start = pointer;
-            while (pointer < source.Length && source[pointer].IsValidInlineChar(isInsideDictionary))
+            var lastNonWhiteSpace = pointer - 1;
+            while (Peek().IsValidInlineChar(isInsideDictionary))
             {
+                if (!Peek()!.Value.IsWhiteSpace())
+                {
+                    lastNonWhiteSpace = pointer;
+                }
                 pointer++;
             }
-            return source[start..pointer].Trim();
+            pointer = lastNonWhiteSpace + 1;
+            return source[start..pointer];
         }
-        Inline ReadValue(bool isInsideDictionary)
+        List<Inline> ReadDictionaryItem()
         {
-            var c = Peek();
-            if (c == '{')
+            List<Inline> result = [ReadValue(true)];
+            while (Peek() == ':')
             {
                 pointer++;
-                if (pointer < source.Length && source[pointer] == '}')
-                {
-                    pointer++;
-                    return new InlineDictionary { KeyValues = [] };
-                }
-                var key = ReadString(true);
-                ReadExpected(':');
-                var value = ReadValue(true);
-                var props = new List<KeyValuePair<InlineString, Inline>>() { new(new InlineString { Value = key }, value) };
-                while (Peek() == ',')
-                {
-                    pointer++;
-                    key = ReadString(true);
-                    ReadExpected(':');
-                    value = ReadValue(true);
-                    props.Add(new(new InlineString { Value = key }, value));
-                }
-                ReadExpected('}');
-
-                return new InlineDictionary { KeyValues = props };
+                result.Add(ReadValue(true));
             }
-            if (c == '[')
-            {
-                pointer++;
-                if (pointer < source.Length && source[pointer] == ']')
-                {
-                    pointer++;
-                    return new InlineList { Values = new List<Inline>() };
-                }
-                List<Inline> items = [ReadValue(isInsideDictionary)];
-                while (Peek() == ',')
-                {
-                    pointer++;
-                    items.Add(ReadValue(isInsideDictionary));
-                }
-                ReadExpected(']');
-
-                return new InlineList { Values = items };
-            }
-            /*if (!c.IsValidInlineChar(isInsideDictionary))
-            {
-                throw new NestedTextDeserializeException($"Expected string value, but got '{Peek()}'.", lineNumber, columnNumber + pointer);
-            }*/
-            return new InlineString { Value = ReadString(isInsideDictionary).Trim() };
+            return result;
         }
-        var result = ReadValue(false);
-        while (pointer < source.Length && char.IsWhiteSpace(source[pointer])) pointer++;
-        if (pointer != source.Length)
+        Inline ReadValue(bool isInsideDictionary, bool isRoot = false)
         {
-            throw new NotImplementedException($"Unexpected end of inline value.");
+            int leadingSpaces = 0;
+            char? c;
+            while ((c = Peek()) != null && char.IsWhiteSpace(c.Value))
+            {
+                pointer++;
+                leadingSpaces++;
+            }
+            Inline result;
+            var valueStart = pointer;
+            if (c == null)
+            {
+                result = new InlineString { Line = line, LeadingSpaces = leadingSpaces, Value = "" };
+            }
+            else
+            {
+
+                if (c == '{')
+                {
+                    pointer++;
+                    if (Peek() == '}')
+                    {
+                        pointer++;
+                        result = new InlineDictionary { Line = line, KeyValues = [] };
+                    }
+                    else
+                    {
+                        List<List<Inline>> items = [ReadDictionaryItem()];
+                        while (Peek() == ',')
+                        {
+                            pointer++;
+                            items.Add(ReadDictionaryItem());
+                        }
+                        if (Peek() == '}')
+                        {
+                            pointer++;
+                            result = new InlineDictionary { Line = line, KeyValues = items };
+                        }
+                        else
+                        {
+                            result = new InlineDictionary { Line = line, KeyValues = items, Unterminated = true };
+                        }
+                    }
+                }
+                else if (c == '[')
+                {
+                    pointer++;
+                    if (Peek() == ']')
+                    {
+                        pointer++;
+                        result = new InlineList { Line = line, Values = [] };
+                    }
+                    else
+                    {
+                        List<Inline> items = [ReadValue(false)];
+                        while (Peek() == ',')
+                        {
+                            pointer++;
+                            items.Add(ReadValue(false));
+                        }
+                        if (Peek() == ']')
+                        {
+                            pointer++;
+                            result = new InlineList { Line = line, Values = items };
+                        }
+                        else
+                        {
+                            result = new InlineList { Line = line, Values = items, Unterminated = true };
+                        }
+                    }
+                }
+                else
+                {
+                    result = new InlineString { Line = line, Value = ReadString(isInsideDictionary) };
+                }
+            }
+            result.ValueStart = valueStart;
+            result.ValueEnd = pointer;
+            if (isRoot) pointer = source.Length;
+            else while (!Peek().IsValueTerminator(isInsideDictionary))
+            {
+                pointer++;
+            }
+            result.LeadingSpaces = leadingSpaces;
+            result.Suffix = source[result.ValueEnd..pointer];
+            return result;
         }
+        var result = ReadValue(false, true);
         return result;
     }
 }

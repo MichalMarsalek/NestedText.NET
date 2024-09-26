@@ -17,7 +17,7 @@ public static class NestedTextSerializer
     /// <returns>Formatted source.</returns>
     public static string Format(string source, NestedTextSerializerOptions? options = null)
     {
-        return Parser.Parse(source, options).Transform(options ?? new(), null).ToString();
+        return Parser.Parse(source, options).Transform(options ?? new(), 0).ToString();
     }
 
     /// <summary>
@@ -47,14 +47,10 @@ public static class NestedTextSerializer
     {
         options ??= new();
         var cst = Parser.Parse(data, options);
-        var errors = (cst.Indentation > 0 ? new ParsingError[] { new(1, 1, "Unexpected indentation.") }.Concat(cst.Errors) : cst.Errors).GetEnumerator();
+        var errors = (cst.Indentation > 0 ? new ParsingError[] { new(cst.Lines.OfType<ValueLine>().First().LineNumber, 1, "Unexpected indentation.") }.Concat(cst.Errors) : cst.Errors).GetEnumerator();
         if (errors.MoveNext())
         {
-            throw new NestedTextDeserializeException
-            {
-                FirstError = errors.Current,
-                OtherErrors = errors.Iterate()
-            };
+            throw new NestedTextDeserializeException(errors.Current, errors.Iterate());
         }
 
         var jsonNode = cst.ToJsonNode();

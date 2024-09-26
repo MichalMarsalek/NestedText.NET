@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace NestedText.Cst;
 
-internal enum BlockKind { String, TaglessString, List, Dictionary, Inline }
+internal enum BlockKind { String, List, Dictionary, Inline }
 internal class Block : Node
 {
     public IReadOnlyCollection<Line> Lines { get; private set; } = [];
@@ -18,10 +18,10 @@ internal class Block : Node
             Kind = line switch
             {
                 StringLine => BlockKind.String,
-                TaglessStringLine => BlockKind.TaglessString,
                 ListItemLine => BlockKind.List,
                 DictionaryItemLine => BlockKind.Dictionary,
                 KeyItemLine => BlockKind.Dictionary,
+                InlineLine => BlockKind.Inline,
                 _ => null
             };
             if (Kind != null)
@@ -36,6 +36,7 @@ internal class Block : Node
     {
         get
         {
+            bool inlineAlreadySeen = false;
             foreach (var line in Lines)
             {
                 if (line is ErrorLine errorLine) yield return errorLine.ToError(errorLine.Message);
@@ -46,10 +47,6 @@ internal class Block : Node
                 {
                     if (line is not StringLine) yield return line.ToError("Unexpected node.");
                 }
-                else if (Kind == BlockKind.TaglessString)
-                {
-                    if (line is not TaglessStringLine) yield return line.ToError("Unexpected node.");
-                }
                 else if (Kind == BlockKind.List)
                 {
                     if (line is not ListItemLine) yield return line.ToError("Unexpected node.");
@@ -58,12 +55,22 @@ internal class Block : Node
                 {
                     if (line is not DictionaryItemLine && line is not KeyItemLine) yield return line.ToError("Unexpected node.");
                 }
+                else if (Kind == BlockKind.Inline)
+                {
+                    if (line is not InlineLine) yield return line.ToError("Unexpected node.");
+                    if (inlineAlreadySeen)
+                    {
+                        yield return line.ToError("Only one inline line allowed in a block.");
+                    }
+                    inlineAlreadySeen = true;
+                }
                 foreach (var lineError in line.Errors) yield return lineError;
             }
             if (Kind == BlockKind.Dictionary)
             {
+                var keys = new HashSet<string>();
                 var dictLines = Lines.OfType<DictionaryLine>();
-                List<Line> keyLines = [];
+                List<KeyItemLine> keyLines = [];
                 foreach (var line in dictLines)
                 {
                     if (line is DictionaryItemLine din)
@@ -72,6 +79,10 @@ internal class Block : Node
                         {
                             yield return keyLines.Last().ToError("Key item requires a value.");
                         }
+                        if (!keys.Add(din.Key))
+                        {
+                            yield return line.ToError("Duplicate dictionary key.");
+                        }
 
                     }
                     if (line is KeyItemLine kin)
@@ -79,6 +90,11 @@ internal class Block : Node
                         keyLines.Add(kin);
                         if (kin.NestedHasValue)
                         {
+                            var key = keyLines.Select(x => x.Key).JoinLines();
+                            if (!keys.Add(key))
+                            {
+                                yield return line.ToError("Duplicate dictionary key.");
+                            }
                             keyLines.Clear();
                         }
                     }
@@ -100,9 +116,10 @@ internal class Block : Node
         return builder;
     }
 
-    internal override Node Transform(NestedTextSerializerOptions options, Node? parent)
+    internal Block Transform(NestedTextSerializerOptions options, int indentation)
     {
-        throw new NotImplementedException();
+        var fmt = options.FormatOptions;
+        return fmt.SkipAll ? this : new Block(Lines.Select(x => x.Transform(options, indentation)));
     }
 
     /// <summary>
@@ -115,10 +132,6 @@ internal class Block : Node
         if (kind == BlockKind.String)
         {
             return JsonValue.Create(Lines.OfType<StringLine>().Select(x => x.Value).JoinLines());
-        }
-        if (kind == BlockKind.TaglessString)
-        {
-            return JsonValue.Create(Lines.OfType<TaglessStringLine>().Select(x => x.Value).JoinLines());
         }
         if (kind == BlockKind.List)
         {
@@ -149,6 +162,10 @@ internal class Block : Node
             }
             return new JsonObject(props!);
         }
+        if (kind == BlockKind.Inline)
+        {
+            return Lines.OfType<InlineLine>().First().Inline.ToJsonNode();
+        }
         return null;
     }
 
@@ -171,28 +188,29 @@ internal class Block : Node
             };
         }
 
-        Inline InlineFromJsonNode(JsonNode node)
+        Inline InlineFromJsonNode(JsonNode node, int indentation = 0)
         {
             if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)
             {
-                return new InlineString { Indentation = 0, Value = value.GetValue<string>(), TrailingSpaces = 0 };
+                return new InlineString { LeadingSpaces = 0, Value = value.GetValue<string>() };
             }
             if (node is JsonArray array)
             {
-                return new InlineList { Indentation = 0, Values = array.Select(InlineFromJsonNode), TrailingSpaces = 0 };
+                return new InlineList { LeadingSpaces = 0, Values = array.Select((x,i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
             }
             if (node is JsonObject obj)
             {
                 return new InlineDictionary
                 {
-                    Indentation = 0,
-                    KeyValues = obj.Select(x => new KeyValuePair<InlineString, Inline>(new InlineString
-                    {
-                        Indentation = 0,
-                        Value = x.Key,
-                        TrailingSpaces = 0
-                    }, InlineFromJsonNode(x.Value))),
-                    TrailingSpaces = 0
+                    LeadingSpaces = 0,
+                    KeyValues = obj.Select((x,i) => new List<Inline>{
+                        new InlineString
+                        {
+                            LeadingSpaces = i > 0 ? 1 : 0,
+                            Value = x.Key,
+                        },
+                        InlineFromJsonNode(x.Value, 1)
+                    })
                 };
             }
             throw new NestedTextSerializeException($"Unexpected kind {node.GetValueKind()}.");
@@ -210,7 +228,7 @@ internal class Block : Node
             }
             if ((node is JsonArray || node is JsonObject) && IsValidInlineValue(node, options.MaxDepthToInline, false))
             {
-                return new Block([InlineFromJsonNode(node)]);
+                return new Block([new InlineLine { Inline = InlineFromJsonNode(node, indentation) }]);
             }
             if (node is JsonArray array)
             {

@@ -17,16 +17,7 @@ internal abstract class Node
         Append(builder);
         return builder.ToString();
     }
-
-    /// <summary>
-    /// Transforms the CST so that when emitted, it is formatted
-    /// according to <see cref="options"/>.
-    /// </summary>
-    /// <param name="options">Formatting options.</param>
-    /// <param name="parent">Parent node. This is relevant mainly for indentation.</param>
-    /// <returns>The transformed CST</returns>
-    internal abstract Node Transform(NestedTextSerializerOptions options, Node? parent);
-
+    
     /// <summary>
     /// Emits the node.
     /// </summary>
