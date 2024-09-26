@@ -106,10 +106,6 @@ internal class InlineDictionary : Inline
             var keys = new HashSet<string>();
             foreach (var item in KeyValues)
             {
-                if (item.Count != 2)
-                {
-                    yield return ToError($"Key value pair expected, but found {item.Count} colon separated values.", item.Count < 2 ? item[0].ValueEnd : item[2].ValueStart);
-                }
                 if (item[0] is InlineString stringNode)
                 {
                     if (!keys.Add(stringNode.Value))
@@ -121,7 +117,11 @@ internal class InlineDictionary : Inline
                 {
                     yield return ToError($"Key must be an inline string.", item[0].ValueStart);
                 }
-                foreach(var x in item)
+                if (item.Count != 2)
+                {
+                    yield return ToError($"Key value pair expected, but found {item.Count} colon separated values.", item.Count < 2 ? item[0].ValueEnd : item[2].ValueStart);
+                }
+                foreach (var x in item)
                 {
                     foreach(var error in x.Errors)
                     {
