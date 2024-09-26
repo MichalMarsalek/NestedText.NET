@@ -2,7 +2,7 @@
 
 internal static class Parser
 {
-    internal static Block Parse(string source, NestedTextSerializerOptions? options = null)
+    internal static Root Parse(string source, NestedTextSerializerOptions? options = null)
     {
         var multilinesStack = new Stack<List<Line>>();
         var indentStack = new Stack<int?>();
@@ -11,7 +11,12 @@ internal static class Parser
         var lineNumber = 0;
         var toBePlacedIgnoredLines = new List<IgnoredLine>();
         var rawLines = source.GetLines().ToList();
-        if (rawLines.Any() && rawLines.Last() == "") rawLines.RemoveAt(rawLines.Count - 1);
+        var unterminated = true;
+        if (rawLines.Any() && rawLines.Last() == "")
+        {
+            rawLines.RemoveAt(rawLines.Count - 1);
+            unterminated = false;
+        }
         foreach (var rawLine in rawLines)
         {
             lineNumber++;
@@ -31,6 +36,8 @@ internal static class Parser
                 while (lineIndent < currentIndent && indentStack.Any())
                 {
                     var terminatedMultiline = multilinesStack.Pop();
+                    terminatedMultiline.AddRange(toBePlacedIgnoredLines);
+                    toBePlacedIgnoredLines.Clear();
                     currentMultiline = multilinesStack.Peek();
                     indentStack.Pop();
                     currentIndent = indentStack.Peek();
@@ -60,7 +67,7 @@ internal static class Parser
         while (true)
         {
             var terminatedMultiline = multilinesStack.Pop();
-            if (!multilinesStack.Any()) return new Block(terminatedMultiline);
+            if (!multilinesStack.Any()) return new Root { Block = new Block(terminatedMultiline), Unterminated = unterminated };
             multilinesStack.Peek().Last().Nested = new Block(terminatedMultiline);
         }
     }

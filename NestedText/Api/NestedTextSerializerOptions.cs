@@ -69,6 +69,11 @@ public class FormatOptions
     /// </summary>
     public bool SkipRestOfLine { get; set; } = false;
 
+    /// <summary>
+    /// Whether to keep unterminated documents unterminated.
+    /// </summary>
+    public bool SkipTermination { get; set; } = false;
+
     public bool SkipAll
     {
         get => SkipIndentation && SkipInlineItemsAlignment && SkipInlineToMultiline && SkipMultilineToInline && SkipRestOfLine;
