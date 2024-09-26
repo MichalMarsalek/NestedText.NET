@@ -53,11 +53,8 @@ internal static class Parser
                 }
                 else
                 {
-                    if (!currentMultiline.Any())
-                    {
-                        currentMultiline.AddRange(toBePlacedIgnoredLines);
-                        toBePlacedIgnoredLines.Clear();
-                    }
+                    currentMultiline.AddRange(toBePlacedIgnoredLines);
+                    toBePlacedIgnoredLines.Clear();
                     currentMultiline.Add(line);
                 }
             }
@@ -163,18 +160,18 @@ internal static class Parser
         }
         Inline ReadValue(bool isInsideDictionary, bool isRoot = false)
         {
-            int leadingSpaces = 0;
+            int whiteSpaceStart = pointer;
             char? c;
             while ((c = Peek()) != null && char.IsWhiteSpace(c.Value))
             {
                 pointer++;
-                leadingSpaces++;
             }
             Inline result;
             var valueStart = pointer;
+            var leadingWhiteSpace = source[whiteSpaceStart..valueStart];
             if (c == null)
             {
-                result = new InlineString { Line = line, LeadingSpaces = leadingSpaces, Value = "" };
+                result = new InlineString { Line = line, LeadingWhiteSpace = leadingWhiteSpace, Value = "" };
             }
             else
             {
@@ -245,7 +242,7 @@ internal static class Parser
             {
                 pointer++;
             }
-            result.LeadingSpaces = leadingSpaces;
+            result.LeadingWhiteSpace = leadingWhiteSpace;
             result.Suffix = source[result.ValueEnd..pointer];
             return result;
         }

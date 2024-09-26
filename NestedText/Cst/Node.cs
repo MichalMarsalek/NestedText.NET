@@ -50,7 +50,7 @@ internal class Root : Node
     protected internal override StringBuilder Append(StringBuilder builder)
     {
         Block.Append(builder);
-        if (Unterminated) builder.Length--;
+        if (Unterminated) builder.Length -= Environment.NewLine.Length;
         return builder;
     }
 

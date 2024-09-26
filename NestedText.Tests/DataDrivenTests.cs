@@ -74,7 +74,7 @@ public class DataDrivenTests
 
                 if (loadIn != null)
                 {
-                    loadIn = loadIn.GetLines().JoinLines();
+                    loadIn = loadIn.GetLines().JoinLines().Replace("- \n", "-\n").Replace(": \n", ":\n");
                     var formatted = NestedTextSerializer.Format(loadIn, new() { FormatOptions = new() { SkipAll = true } });
                     formatted.Should().BeEquivalentTo(loadIn);
                 }

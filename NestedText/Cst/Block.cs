@@ -192,21 +192,21 @@ internal class Block : Node
         {
             if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)
             {
-                return new InlineString { LeadingSpaces = leadingSpaces, Value = value.GetValue<string>() };
+                return new InlineString { LeadingWhiteSpace = new string(' ', leadingSpaces), Value = value.GetValue<string>() };
             }
             if (node is JsonArray array)
             {
-                return new InlineList { LeadingSpaces = leadingSpaces, Values = array.Select((x,i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
+                return new InlineList { LeadingWhiteSpace = new string(' ', leadingSpaces), Values = array.Select((x,i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
             }
             if (node is JsonObject obj)
             {
                 return new InlineDictionary
                 {
-                    LeadingSpaces = leadingSpaces,
+                    LeadingWhiteSpace = new string(' ', leadingSpaces),
                     KeyValues = obj.Select((x,i) => new List<Inline>{
                         new InlineString
                         {
-                            LeadingSpaces = i > 0 ? 1 : 0,
+                            LeadingWhiteSpace = new string(' ', i > 0 ? 1 : 0),
                             Value = x.Key,
                         },
                         InlineFromJsonNode(x.Value, 1)

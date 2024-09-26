@@ -7,7 +7,7 @@ namespace NestedText.Cst;
 internal abstract class Inline : Node
 {
     public InlineLine Line { get; set; }
-    public int LeadingSpaces { get; set; }
+    public string LeadingWhiteSpace { get; set; }
     public string Suffix { get; set; } = "";
     public int ValueStart { get; set; }
     public int ValueEnd { get; set; }
@@ -17,7 +17,7 @@ internal abstract class Inline : Node
     public abstract StringBuilder AppendValue(StringBuilder builder);
     internal abstract Inline Transform(NestedTextSerializerOptions options, bool isFirst);
     protected internal override StringBuilder Append(StringBuilder builder)
-        => AppendValue(builder.Append(new string(' ', LeadingSpaces))).Append(Suffix);
+        => AppendValue(builder.Append(LeadingWhiteSpace)).Append(Suffix);
     protected internal ParsingError ToError(string message, int? offset = null)
         => Line.ToError(message, offset);
 }
@@ -31,7 +31,7 @@ internal class InlineString : Inline
     {
         return new InlineString
         {
-            LeadingSpaces = isFirst ? 0 : 1,
+            LeadingWhiteSpace = new string(' ', isFirst ? 0 : 1),
             Value = Value,
             Suffix = Suffix.IsWhiteSpace() ? "" : Suffix
         };
@@ -73,7 +73,7 @@ internal class InlineList : Inline
     {
         return new InlineList
         {
-            LeadingSpaces = isFirst ? 0 : 1,
+            LeadingWhiteSpace = new string(' ', isFirst ? 0 : 1),
             Values = Values.Select((x,i) => x.Transform(options, i == 0)),
             Unterminated = Unterminated,
             Suffix = Suffix.IsWhiteSpace() ? "" : Suffix
@@ -144,7 +144,7 @@ internal class InlineDictionary : Inline
     {
         return new InlineDictionary
         {
-            LeadingSpaces = isFirst ? 0 : 1,
+            LeadingWhiteSpace = new string(' ', isFirst ? 0 : 1),
             KeyValues = KeyValues.Select((kv, i) => kv.Select((x,j) => x.Transform(options, i == 0 && j == 0)).ToList()),
             Unterminated = Unterminated,
             Suffix = Suffix.IsWhiteSpace() ? "" : Suffix

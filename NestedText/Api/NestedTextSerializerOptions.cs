@@ -76,7 +76,7 @@ public class FormatOptions
 
     public bool SkipAll
     {
-        get => SkipIndentation && SkipInlineItemsAlignment && SkipInlineToMultiline && SkipMultilineToInline && SkipRestOfLine;
-        set => SkipIndentation = SkipInlineItemsAlignment = SkipInlineToMultiline = SkipMultilineToInline = SkipRestOfLine = value;
+        get => SkipIndentation && SkipInlineItemsAlignment && SkipInlineToMultiline && SkipMultilineToInline && SkipRestOfLine && SkipTermination;
+        set => SkipIndentation = SkipInlineItemsAlignment = SkipInlineToMultiline = SkipMultilineToInline = SkipRestOfLine = SkipTermination = value;
     }
 }
