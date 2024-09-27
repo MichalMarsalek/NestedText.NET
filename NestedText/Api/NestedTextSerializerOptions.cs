@@ -38,6 +38,11 @@ public class NestedTextSerializerOptions
     /// Defines which syntactical properties should be left intact when formatting a document.
     /// </summary>
     public FormatOptions FormatOptions { get; set; } = new();
+
+    /// <summary>
+    /// Whether to throw when parsing a document whose last line is not empty.
+    /// </summary>
+    public bool ThrowOnUnterminated { get; set; } = true;
 }
 
 public enum EmptyType { String, List, Dictionary }

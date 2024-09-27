@@ -52,7 +52,7 @@ public class DataDrivenTests
 
             if (loadIn != null)
             {
-                var act = () => NestedTextSerializer.Deserialize<JsonNode>(loadIn);
+                var act = () => NestedText.NestedTextSerializer.Deserialize<JsonNode>(loadIn);
                 if (loadOut != null)
                 {
                     var expected = JsonSerializer.Serialize(loadOut);
@@ -82,7 +82,7 @@ public class DataDrivenTests
                 {
                     var nl = Environment.NewLine;
                     loadIn = loadIn.GetLines().JoinLines().Replace("- " + nl, "-" + nl).Replace(": " + nl, ":" + nl);
-                    var formatted = NestedTextSerializer.Format(loadIn, new() { FormatOptions = new() { SkipAll = true } });
+                    var formatted = NestedText.NestedTextSerializer.Format(loadIn, new() { FormatOptions = new() { SkipAll = true } });
                     formatted.Should().BeEquivalentTo(loadIn);
                 }
             }
@@ -96,7 +96,7 @@ public class DataDrivenTests
 
             if (dumpIn != null)
             {
-                var act = () => NestedTextSerializer.Serialize(dumpIn, dumpOptions);
+                var act = () => NestedText.NestedTextSerializer.Serialize(dumpIn, dumpOptions);
                 if (dumpOut != null)
                 {
                     act().Should().BeEquivalentTo(dumpOut);

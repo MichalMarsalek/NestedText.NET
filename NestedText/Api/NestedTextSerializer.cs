@@ -47,9 +47,10 @@ public static class NestedTextSerializer
     {
         options ??= new();
         var cst = Parser.Parse(data, options);
-        if (cst.Errors.Any())
+        var errors = options.ThrowOnUnterminated ? cst.Errors : cst.Errors.Where(x => x is not UnterminatedDocumentParsingError);
+        if (errors.Any())
         {
-            throw new NestedTextDeserializeException(cst.Errors);
+            throw new NestedTextDeserializeException(errors);
         }
 
         var jsonNode = cst.ToJsonNode();

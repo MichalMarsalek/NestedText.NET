@@ -4,6 +4,10 @@ using System.Text.Json.Nodes;
 
 namespace NestedText.Cst;
 
+internal record UnterminatedDocumentParsingError(int LineNumber, int ColumnNumber, string Message) : ParsingError(LineNumber, ColumnNumber, Message)
+{
+}
+
 internal abstract class Node
 {
     protected List<ParsingError>? errors;
@@ -63,7 +67,7 @@ internal class Root : Node
         }
         if (Unterminated)
         {
-            yield return new ParsingError(1, 1, "Unterminated document.");
+            yield return new UnterminatedDocumentParsingError(1, 1, "Unterminated document.");
         }
     }
 
