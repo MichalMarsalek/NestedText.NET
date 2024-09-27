@@ -32,77 +32,74 @@ internal class Block : Node
         }
     }
 
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
     {
-        get
+        bool inlineAlreadySeen = false;
+        foreach (var line in Lines)
         {
-            bool inlineAlreadySeen = false;
-            foreach (var line in Lines)
-            {
-                if (line is ErrorLine errorLine) yield return errorLine.ToError(errorLine.Message);
-                if (line is IgnoredLine) continue;
+            if (line is ErrorLine errorLine) yield return errorLine.ToError(errorLine.Message);
+            if (line is IgnoredLine) continue;
 
-                if (line.Indentation != Indentation) yield return line.ToError("Unexpected indentation.", Indentation);
-                if (Kind == BlockKind.String)
-                {
-                    if (line is not StringLine) yield return line.ToError("Unexpected node.");
-                }
-                else if (Kind == BlockKind.List)
-                {
-                    if (line is not ListItemLine) yield return line.ToError("Unexpected node.");
-                }
-                else if (Kind == BlockKind.Dictionary)
-                {
-                    if (line is not DictionaryItemLine && line is not KeyItemLine) yield return line.ToError("Unexpected node.");
-                }
-                else if (Kind == BlockKind.Inline)
-                {
-                    if (line is not InlineLine) yield return line.ToError("Unexpected node.");
-                    if (inlineAlreadySeen)
-                    {
-                        yield return line.ToError("Only one inline line allowed in a block.");
-                    }
-                    inlineAlreadySeen = true;
-                }
-                foreach (var lineError in line.Errors) yield return lineError;
-            }
-            if (Kind == BlockKind.Dictionary)
+            if (line.Indentation != Indentation) yield return line.ToError("Unexpected indentation.", Indentation);
+            if (Kind == BlockKind.String)
             {
-                var keys = new HashSet<string>();
-                var dictLines = Lines.OfType<DictionaryLine>();
-                List<KeyItemLine> keyLines = [];
-                foreach (var line in dictLines)
+                if (line is not StringLine) yield return line.ToError("Unexpected node.");
+            }
+            else if (Kind == BlockKind.List)
+            {
+                if (line is not ListItemLine) yield return line.ToError("Unexpected node.");
+            }
+            else if (Kind == BlockKind.Dictionary)
+            {
+                if (line is not DictionaryItemLine && line is not KeyItemLine) yield return line.ToError("Unexpected node.");
+            }
+            else if (Kind == BlockKind.Inline)
+            {
+                if (line is not InlineLine) yield return line.ToError("Unexpected node.");
+                if (inlineAlreadySeen)
                 {
-                    if (line is DictionaryItemLine din)
+                    yield return line.ToError("Only one inline line allowed in a block.");
+                }
+                inlineAlreadySeen = true;
+            }
+            foreach (var lineError in line.Errors) yield return lineError;
+        }
+        if (Kind == BlockKind.Dictionary)
+        {
+            var keys = new HashSet<string>();
+            var dictLines = Lines.OfType<DictionaryLine>();
+            List<KeyItemLine> keyLines = [];
+            foreach (var line in dictLines)
+            {
+                if (line is DictionaryItemLine din)
+                {
+                    if (keyLines.Any())
                     {
-                        if (keyLines.Any())
-                        {
-                            yield return keyLines.Last().ToError("Key item requires a value.");
-                        }
-                        if (!keys.Add(din.Key))
+                        yield return keyLines.Last().ToError("Key item requires a value.");
+                    }
+                    if (!keys.Add(din.Key))
+                    {
+                        yield return line.ToError("Duplicate dictionary key.");
+                    }
+
+                }
+                if (line is KeyItemLine kin)
+                {
+                    keyLines.Add(kin);
+                    if (kin.NestedHasValue)
+                    {
+                        var key = keyLines.Select(x => x.Key).JoinLines();
+                        if (!keys.Add(key))
                         {
                             yield return line.ToError("Duplicate dictionary key.");
                         }
-
-                    }
-                    if (line is KeyItemLine kin)
-                    {
-                        keyLines.Add(kin);
-                        if (kin.NestedHasValue)
-                        {
-                            var key = keyLines.Select(x => x.Key).JoinLines();
-                            if (!keys.Add(key))
-                            {
-                                yield return line.ToError("Duplicate dictionary key.");
-                            }
-                            keyLines.Clear();
-                        }
+                        keyLines.Clear();
                     }
                 }
-                if (keyLines.Any())
-                {
-                    yield return keyLines.Last().ToError("Key item requires a value.");
-                }
+            }
+            if (keyLines.Any())
+            {
+                yield return keyLines.Last().ToError("Key item requires a value.");
             }
         }
     }
@@ -124,7 +121,7 @@ internal class Block : Node
 
     /// <summary>
     /// Traverses the CST and converts to JsonNode, ignoring all error nodes.
-    /// Caller is expected to check the <see cref="Errors"/> first.
+    /// Caller is expected to check the <see cref="CalcErrors"/> first.
     /// </summary>
     public JsonNode? ToJsonNode()
     {

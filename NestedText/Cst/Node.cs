@@ -6,10 +6,15 @@ namespace NestedText.Cst;
 
 internal abstract class Node
 {
+    protected List<ParsingError>? errors;
+    public abstract IEnumerable<ParsingError> CalcErrors();
+
     /// <summary>
     /// All errors within the tree.
     /// </summary>
-    public abstract IEnumerable<ParsingError> Errors { get; }
+    public IEnumerable<ParsingError> Errors
+        => errors ??= CalcErrors().ToList();
+
 
     public override string ToString()
     {
@@ -28,22 +33,19 @@ internal class Root : Node
 {
     public required Block Block { get; init; }
     public required bool Unterminated { get; init; }
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
     {
-        get
+        if (Block.Indentation > 0)
         {
-            if (Block.Indentation > 0)
-            {
-                yield return Block.Lines.OfType<ValueLine>().First().ToError("Unexpected indentation.", 0);
-            }
-            foreach(var error in Block.Errors)
-            {
-                yield return error;
-            }
-            if (Unterminated)
-            {
-                yield return new ParsingError(1, 1, "Unterminated document.");
-            }
+            yield return Block.Lines.OfType<ValueLine>().First().ToError("Unexpected indentation.", 0);
+        }
+        foreach(var error in Block.Errors)
+        {
+            yield return error;
+        }
+        if (Unterminated)
+        {
+            yield return new ParsingError(1, 1, "Unterminated document.");
         }
     }
 

@@ -10,7 +10,7 @@ internal abstract class Line : Node
     public int Indentation { get; set; }
     public int LineNumber { get; set; }
     public Block Nested { get; set; } = new Block([]);
-    public override IEnumerable<ParsingError> Errors => Nested.Errors;
+    public override IEnumerable<ParsingError> CalcErrors() => Nested.Errors;
     abstract protected internal StringBuilder AppendLineContent(StringBuilder builder);
     protected internal override StringBuilder Append(StringBuilder builder)
     {
@@ -32,7 +32,7 @@ internal abstract class Line : Node
 internal abstract class IgnoredLine : Line
 {
     internal required string Content { get; set; }
-    public override IEnumerable<ParsingError> Errors => [];
+    public override IEnumerable<ParsingError> CalcErrors() => [];
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(Content);
@@ -76,7 +76,7 @@ internal abstract class ValueLine : Line { }
 internal class StringLine : ValueLine
 {
     public required string Value { get; set; }
-    public override IEnumerable<ParsingError> Errors => AllNestedToErrors(Indentation);
+    public override IEnumerable<ParsingError> CalcErrors() => AllNestedToErrors(Indentation);
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(Value == "" ? ">" : "> ").Append(Value);
@@ -106,16 +106,13 @@ internal class ListItemLine : ValueLine
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(RestOfLine == null ? "-" : "- " + RestOfLine);
 
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
     {
-        get
+        if (RestOfLine != null)
         {
-            if (RestOfLine != null)
-            {
-                return AllNestedToErrors(Indentation);
-            }
-            return Nested.Errors;
+            return AllNestedToErrors(Indentation);
         }
+        return Nested.Errors;
     }
     internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new ListItemLine
     {
@@ -134,16 +131,13 @@ internal class DictionaryItemLine : DictionaryLine
     public required string KeyTrailingWhiteSpace { get; set; }
     public string? RestOfLine { get; set; }
 
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
     {
-        get
+        if (RestOfLine != null)
         {
-            if (RestOfLine != null)
-            {
-                return AllNestedToErrors(Indentation);
-            }
-            return Nested.Errors;
+            return AllNestedToErrors(Indentation);
         }
+        return Nested.Errors;
     }
     public JsonNode ToJsonNode()
     {
@@ -193,5 +187,5 @@ internal class InlineLine : Line
         Nested = Nested.Transform(options, indentation + options.Indentation),
         Inline = options.FormatOptions.SkipInlineItemsAlignment ? Inline : Inline.Transform(options, true),
     };
-    public override IEnumerable<ParsingError> Errors => Inline.Errors;
+    public override IEnumerable<ParsingError> CalcErrors() => Inline.Errors;
 }

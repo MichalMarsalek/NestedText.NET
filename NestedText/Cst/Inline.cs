@@ -24,7 +24,7 @@ internal abstract class Inline : Node
 internal class InlineString : Inline
 {
     public required string Value { get; set; }
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
         => Suffix.IsWhiteSpace() ? [] : [ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart)];
 
     internal override Inline Transform(NestedTextSerializerOptions options, bool isFirst)
@@ -47,25 +47,22 @@ internal class InlineList : Inline
 {
     public required IEnumerable<Inline> Values { get; set; }
     public bool Unterminated { get; set; }
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
     {
-        get
+        foreach (var item in Values)
         {
-            foreach (var item in Values)
+            foreach (var error in item.Errors)
             {
-                foreach (var error in item.Errors)
-                {
-                    yield return error;
-                }
+                yield return error;
             }
-            if (Unterminated)
-            {
-                yield return ToError("Unterminated inline list.", ValueEnd);
-            }
-            if (!Suffix.IsWhiteSpace())
-            {
-                yield return ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart);
-            }
+        }
+        if (Unterminated)
+        {
+            yield return ToError("Unterminated inline list.", ValueEnd);
+        }
+        if (!Suffix.IsWhiteSpace())
+        {
+            yield return ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart);
         }
     }
 
@@ -99,44 +96,41 @@ internal class InlineDictionary : Inline
 {
     public required IEnumerable<List<Inline>> KeyValues { get; set; }
     public bool Unterminated { get; set; }
-    public override IEnumerable<ParsingError> Errors
+    public override IEnumerable<ParsingError> CalcErrors()
     {
-        get
+        var keys = new HashSet<string>();
+        foreach (var item in KeyValues)
         {
-            var keys = new HashSet<string>();
-            foreach (var item in KeyValues)
+            if (item[0] is InlineString stringNode)
             {
-                if (item[0] is InlineString stringNode)
+                if (!keys.Add(stringNode.Value))
                 {
-                    if (!keys.Add(stringNode.Value))
-                    {
-                        yield return ToError("Duplicate dictionary key.", stringNode.ValueStart);
-                    }
-                }
-                else
-                {
-                    yield return ToError($"Key must be an inline string.", item[0].ValueStart);
-                }
-                if (item.Count != 2)
-                {
-                    yield return ToError($"Key value pair expected, but found {item.Count} colon separated values.", item.Count < 2 ? item[0].ValueEnd : item[2].ValueStart);
-                }
-                foreach (var x in item)
-                {
-                    foreach(var error in x.Errors)
-                    {
-                        yield return error;
-                    }
+                    yield return ToError("Duplicate dictionary key.", stringNode.ValueStart);
                 }
             }
-            if (Unterminated)
+            else
             {
-                yield return ToError("Unterminated inline dictionary.", ValueEnd);
+                yield return ToError($"Key must be an inline string.", item[0].ValueStart);
             }
-            if (!Suffix.IsWhiteSpace())
+            if (item.Count != 2)
             {
-                yield return ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart);
+                yield return ToError($"Key value pair expected, but found {item.Count} colon separated values.", item.Count < 2 ? item[0].ValueEnd : item[2].ValueStart);
             }
+            foreach (var x in item)
+            {
+                foreach(var error in x.Errors)
+                {
+                    yield return error;
+                }
+            }
+        }
+        if (Unterminated)
+        {
+            yield return ToError("Unterminated inline dictionary.", ValueEnd);
+        }
+        if (!Suffix.IsWhiteSpace())
+        {
+            yield return ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart);
         }
     }
 
