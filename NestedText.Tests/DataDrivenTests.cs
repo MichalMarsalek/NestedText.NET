@@ -9,7 +9,7 @@ namespace NestedText.Tests;
 public class DataDrivenTests
 {
     const string OFFICIAL_TESTS_PATH = "official_tests/test_cases";
-    const string CUSTOM_TESTS_PATH = "custom_tests/test_cases";
+    const string CUSTOM_TESTS_PATH = "custom_tests";
 
     [Theory]
     [DdtData(OFFICIAL_TESTS_PATH)]
@@ -51,7 +51,7 @@ public class DataDrivenTests
 
             if (loadIn != null)
             {
-                var act = () => NestedTextSerializer.Deserialize<JsonNode>(loadIn, new() { ParseTaglessStringLines = false });
+                var act = () => NestedTextSerializer.Deserialize<JsonNode>(loadIn);
                 if (loadOut != null)
                 {
                     var expected = JsonSerializer.Serialize(loadOut);
@@ -61,8 +61,23 @@ public class DataDrivenTests
                 else if (loadError != null)
                 {
                     var actual = act.Should().Throw<NestedTextDeserializeException>().Which;
-                    actual.Line.Should().Be(loadError.LineNo + 1);
-                    actual.Column.Should().Be((loadError.ColNo ?? 0) + 1);
+                    actual.FirstError.LineNumber.Should().Be(loadError.LineNo + 1);
+                    actual.FirstError.ColumnNumber.Should().Be((loadError.ColNo ?? 0) + 1);
+                }
+            }
+        }
+        if (kind == "parsemit")
+        {
+            foreach (var filename in new string[] { "load_in.nt", "format_in.nt" })
+            {
+                var loadIn = Read(filename);
+
+                if (loadIn != null)
+                {
+                    var nl = Environment.NewLine;
+                    loadIn = loadIn.GetLines().JoinLines().Replace("- " + nl, "-" + nl).Replace(": " + nl, ":" + nl);
+                    var formatted = NestedTextSerializer.Format(loadIn, new() { FormatOptions = new() { SkipAll = true } });
+                    formatted.Should().BeEquivalentTo(loadIn);
                 }
             }
         }

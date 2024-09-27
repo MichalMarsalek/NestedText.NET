@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using NestedText.Cst;
 [assembly: InternalsVisibleTo("NestedText.Tests")]
 
 namespace NestedText;
@@ -16,7 +17,7 @@ public static class NestedTextSerializer
     /// <returns>Formatted source.</returns>
     public static string Format(string source, NestedTextSerializerOptions? options = null)
     {
-        return Cst.Parse(source, options).Transform(options ?? new()).ToString();
+        return Parser.Parse(source, options).Transform(options ?? new()).ToString();
     }
 
     /// <summary>
@@ -30,9 +31,9 @@ public static class NestedTextSerializer
     {
         if (data is JsonNode node)
         {
-            return Cst.FromJsonNode(node, options ?? new()).ToString();
+            return Block.FromJsonNode(node, options ?? new()).ToString();
         }
-        return Cst.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
+        return Block.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
     }
 
     /// <summary>
@@ -44,10 +45,33 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        var jsonNode = Cst.Parse(data, options).ToJsonNode();
+        options ??= new();
+        var cst = Parser.Parse(data, options);
+        var errors = cst.Errors.GetEnumerator();
+        if (errors.MoveNext())
+        {
+            throw new NestedTextDeserializeException(errors.Current, errors.Iterate());
+        }
+
+        var jsonNode = cst.ToJsonNode();
         if (jsonNode is T result)
         {
-            return result;
+            return result ?? (T)(options.EmptyType switch
+            {
+                EmptyType.String => (object)JsonValue.Create(""),
+                EmptyType.List => (object)new JsonArray(),
+                EmptyType.Dictionary => (object)new JsonObject()
+            }); ;
+        }
+        if (jsonNode == null)
+        {
+            foreach (var empty in new string[] { "\"\"", "[]", "{}", "null" }) {
+                try
+                {
+                    return JsonSerializer.Deserialize<T>(empty, jsonOptions)!;
+                }
+                catch { }
+            }
         }
         return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
     }
