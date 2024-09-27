@@ -27,6 +27,7 @@ internal abstract class Line : Node
         .Select(x => x.ToError("Unexpected indentation.", expectedIndentation));
     public bool NestedHasValue => Nested.Kind != null;
     abstract internal Line Transform(NestedTextSerializerOptions options, int indentation);
+    public override List<CommentLine> CalcComments() => Nested.Comments;
 }
 
 internal abstract class IgnoredLine : Line
@@ -58,6 +59,7 @@ internal class CommentLine : IgnoredLine
         Nested = Nested.Transform(options, indentation + options.Indentation),
         Content = Content,
     };
+    public override List<CommentLine> CalcComments() => [this, ..Nested.Comments];
 }
 internal class ErrorLine : IgnoredLine
 {

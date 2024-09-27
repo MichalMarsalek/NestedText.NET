@@ -32,6 +32,7 @@ internal class Block : Node
         }
     }
     public override int CalcDepth() => Lines.Any() ? Lines.Max(x => x.Depth) : 0;
+    public override List<CommentLine> CalcComments() => Lines.SelectMany(x => x.Comments).ToList();
 
     public override IEnumerable<ParsingError> CalcErrors()
     {

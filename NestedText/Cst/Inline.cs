@@ -20,6 +20,7 @@ internal abstract class Inline : Node
         => AppendValue(builder.Append(LeadingWhiteSpace)).Append(Suffix);
     protected internal ParsingError ToError(string message, int? offset = null)
         => Line.ToError(message, offset);
+    public override List<CommentLine> CalcComments() => [];
 }
 internal class InlineString : Inline
 {

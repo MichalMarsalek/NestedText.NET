@@ -24,6 +24,15 @@ internal abstract class Node
     public int Depth
         => depth ??= CalcDepth();
 
+    protected List<CommentLine>? comments;
+    public abstract List<CommentLine> CalcComments();
+
+    /// <summary>
+    /// Comment lines in the tree.
+    /// </summary>
+    public List<CommentLine> Comments
+        => comments ??= CalcComments();
+
 
     public override string ToString()
     {
@@ -73,4 +82,5 @@ internal class Root : Node
 
     public JsonNode? ToJsonNode() => Block.ToJsonNode();
     public override int CalcDepth() => Block.Depth;
+    public override List<CommentLine> CalcComments() => Block.Comments;
 }
