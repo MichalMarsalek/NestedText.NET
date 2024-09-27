@@ -1,5 +1,5 @@
 # NestedText.NET
-[NestedText](https://nestedtext.org/) library written in C#. WIP (227/260 tests passing)
+[NestedText](https://nestedtext.org/) library written in C#. WIP (256/262 tests passing)
 
 The library exposes the following static methods:
 - `NestedTextSerializer.Format` 
