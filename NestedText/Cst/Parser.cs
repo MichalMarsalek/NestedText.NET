@@ -83,7 +83,7 @@ internal static class Parser
         var c = line[indentation];
         if (char.IsWhiteSpace(c))
         {
-            return new ErrorLine { Content = line[indentation..], Message = "Only spaces are allowed as indentation." };
+            return new ErrorLine { Content = line[indentation..], Message = $"Invalid character in indentation: '{c.ToString().Replace("\t", "\\t")}'." };
         }
         if (c == '[' || c == '{')
         {
@@ -118,7 +118,7 @@ internal static class Parser
             return new DictionaryItemLine { Key = trimmedKey, KeyTrailingWhiteSpace = keyTrailingWhiteSpace, RestOfLine = null };
         }
 
-        return new ErrorLine { Message = "Unrecognised line.", Content = line[indentation..] };
+        return new ErrorLine { Message = "Unrecognized line.", Content = line[indentation..] };
     }
 
     private static Inline ParseInline(string source, int indentation, InlineLine line)

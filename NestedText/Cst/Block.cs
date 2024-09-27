@@ -42,18 +42,18 @@ internal class Block : Node
             if (line is ErrorLine errorLine) yield return errorLine.ToError(errorLine.Message);
             if (line is IgnoredLine) continue;
 
-            if (line.Indentation != Indentation) yield return line.ToError("Unexpected indentation.", Indentation);
+            if (line.Indentation != Indentation) yield return line.ToError("Invalid indentation, partial dedent.", Indentation);
             if (Kind == BlockKind.String)
             {
-                if (line is not StringLine) yield return line.ToError("Unexpected node.");
+                if (line is not StringLine) yield return line.ToError("Expected string item.");
             }
             else if (Kind == BlockKind.List)
             {
-                if (line is not ListItemLine) yield return line.ToError("Unexpected node.");
+                if (line is not ListItemLine) yield return line.ToError("Expected list item.");
             }
             else if (Kind == BlockKind.Dictionary)
             {
-                if (line is not DictionaryItemLine && line is not KeyItemLine) yield return line.ToError("Unexpected node.");
+                if (line is not DictionaryItemLine && line is not KeyItemLine) yield return line.ToError("Expected dictionary item.");
             }
             else if (Kind == BlockKind.Inline)
             {
@@ -77,11 +77,11 @@ internal class Block : Node
                 {
                     if (keyLines.Any())
                     {
-                        yield return keyLines.Last().ToError("Key item requires a value.");
+                        yield return keyLines.Last().ToError("Multiline key requires a value.");
                     }
                     if (!keys.Add(din.Key))
                     {
-                        yield return line.ToError("Duplicate dictionary key.");
+                        yield return line.ToError($"Duplicate key: '{din.Key}'.");
                     }
 
                 }
@@ -93,7 +93,7 @@ internal class Block : Node
                         var key = keyLines.Select(x => x.Key).JoinLines();
                         if (!keys.Add(key))
                         {
-                            yield return line.ToError("Duplicate dictionary key.");
+                            yield return line.ToError($"Duplicate key: '{key}'.");
                         }
                         keyLines.Clear();
                     }
@@ -101,7 +101,7 @@ internal class Block : Node
             }
             if (keyLines.Any())
             {
-                yield return keyLines.Last().ToError("Key item requires a value.");
+                yield return keyLines.Last().ToError("Multiline key requires a value.");
             }
         }
     }

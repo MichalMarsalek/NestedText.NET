@@ -24,7 +24,7 @@ internal abstract class Line : Node
         => new ParsingError(LineNumber, (indentation ?? Indentation) + 1, message);
     protected IEnumerable<ParsingError> AllNestedToErrors(int expectedIndentation)
         => Nested.Lines.Where(line => line is not BlankLine && line is not CommentLine)
-        .Select(x => x.ToError("Unexpected indentation.", expectedIndentation));
+        .Select(x => x.ToError("Invalid indentation.", expectedIndentation));
     public bool NestedHasValue => Nested.Kind != null;
     abstract internal Line Transform(NestedTextSerializerOptions options, int indentation);
     public override List<CommentLine> CalcComments() => Nested.Comments;

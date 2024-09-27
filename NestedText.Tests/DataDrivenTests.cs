@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace NestedText.Tests;
 
@@ -61,8 +62,13 @@ public class DataDrivenTests
                 else if (loadError != null)
                 {
                     var actual = act.Should().Throw<NestedTextDeserializeException>().Which;
-                    actual.FirstError.LineNumber.Should().Be(loadError.LineNo + 1);
-                    actual.FirstError.ColumnNumber.Should().Be((loadError.ColNo ?? 0) + 1);
+                    actual.Errors.First().LineNumber.Should().Be(loadError.LineNo + 1);
+                    actual.Errors.First().ColumnNumber.Should().Be((loadError.ColNo ?? 0) + 1);
+                    var expectedMessage = loadError.Message;
+                    expectedMessage = Regex.Replace(expectedMessage, @"duplicate key: (.*)\.", "duplicate key: '$1'.");
+                    expectedMessage = Regex.Replace(expectedMessage, @"‘([^‘’]*)’", "'$1'");
+                    expectedMessage = Regex.Replace(expectedMessage, @"indentation: '\\.*'.*", "indentation:");
+                    actual.Errors.First().Message.Should().ContainEquivalentOf(expectedMessage);
                 }
             }
         }
@@ -116,6 +122,7 @@ public class DataDrivenTests
         public int LineNo { get; set; }
         [JsonPropertyName("colno")]
         public int? ColNo { get; set; }
+        [JsonPropertyName("message")]
         public string Message { get; set; }
     }
 }

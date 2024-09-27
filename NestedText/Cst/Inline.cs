@@ -26,7 +26,7 @@ internal class InlineString : Inline
 {
     public required string Value { get; set; }
     public override IEnumerable<ParsingError> CalcErrors()
-        => Suffix.IsWhiteSpace() ? [] : [ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart)];
+        => Suffix.IsWhiteSpace() ? [] : [ToError($"Extra character after closing delimiter: '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart)];
     public override int CalcDepth() => 1;
 
     internal override Inline Transform(NestedTextSerializerOptions options, bool isFirst)
@@ -65,7 +65,7 @@ internal class InlineList : Inline
         }
         if (!Suffix.IsWhiteSpace())
         {
-            yield return ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart);
+            yield return ToError($"Extra character after closing delimiter: '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart);
         }
     }
 
@@ -134,7 +134,7 @@ internal class InlineDictionary : Inline
         }
         if (!Suffix.IsWhiteSpace())
         {
-            yield return ToError("Unexpected characters after a value.", SuffixNonWhiteSpaceStart);
+            yield return ToError($"Extra character after closing delimiter: '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart);
         }
     }
 

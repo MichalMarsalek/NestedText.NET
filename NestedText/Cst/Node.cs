@@ -55,7 +55,7 @@ internal class Root : Node
     {
         if (Block.Indentation > 0)
         {
-            yield return Block.Lines.OfType<ValueLine>().First().ToError("Unexpected indentation.", 0);
+            yield return Block.Lines.OfType<ValueLine>().First().ToError("Top-level content must start in column 1.", 0);
         }
         foreach(var error in Block.Errors)
         {

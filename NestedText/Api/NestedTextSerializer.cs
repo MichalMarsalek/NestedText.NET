@@ -47,10 +47,9 @@ public static class NestedTextSerializer
     {
         options ??= new();
         var cst = Parser.Parse(data, options);
-        var errors = cst.Errors.GetEnumerator();
-        if (errors.MoveNext())
+        if (cst.Errors.Any())
         {
-            throw new NestedTextDeserializeException(errors.Current, errors.Iterate());
+            throw new NestedTextDeserializeException(cst.Errors);
         }
 
         var jsonNode = cst.ToJsonNode();
