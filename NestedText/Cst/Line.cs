@@ -31,6 +31,7 @@ internal abstract class Line : Node
 
 internal abstract class IgnoredLine : Line
 {
+    public override int CalcDepth() => 0;
     internal required string Content { get; set; }
     public override IEnumerable<ParsingError> CalcErrors() => [];
 
@@ -76,6 +77,7 @@ internal abstract class ValueLine : Line { }
 internal class StringLine : ValueLine
 {
     public required string Value { get; set; }
+    public override int CalcDepth() => 1;
     public override IEnumerable<ParsingError> CalcErrors() => AllNestedToErrors(Indentation);
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
@@ -106,6 +108,7 @@ internal class ListItemLine : ValueLine
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(RestOfLine == null ? "-" : "- " + RestOfLine);
 
+    public override int CalcDepth() => RestOfLine == null ? Nested.Depth : 1;
     public override IEnumerable<ParsingError> CalcErrors()
     {
         if (RestOfLine != null)
@@ -130,6 +133,8 @@ internal class DictionaryItemLine : DictionaryLine
     public required string Key { get; set; }
     public required string KeyTrailingWhiteSpace { get; set; }
     public string? RestOfLine { get; set; }
+
+    public override int CalcDepth() => RestOfLine == null ? Nested.Depth : 1;
 
     public override IEnumerable<ParsingError> CalcErrors()
     {
@@ -166,6 +171,7 @@ internal class DictionaryItemLine : DictionaryLine
 internal class KeyItemLine : DictionaryLine
 {
     public required string Key { set; get; }
+    public override int CalcDepth() => Nested.Depth;
     internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new KeyItemLine
     {
         Indentation = indentation,
@@ -181,6 +187,7 @@ internal class InlineLine : Line
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => Inline.Append(builder);
+    public override int CalcDepth() => Inline.Depth;
     internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new InlineLine
     {
         Indentation = indentation,

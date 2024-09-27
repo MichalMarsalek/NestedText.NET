@@ -15,6 +15,15 @@ internal abstract class Node
     public IEnumerable<ParsingError> Errors
         => errors ??= CalcErrors().ToList();
 
+    protected int? depth;
+    public abstract int CalcDepth();
+
+    /// <summary>
+    /// Depth of the tree.
+    /// </summary>
+    public int Depth
+        => depth ??= CalcDepth();
+
 
     public override string ToString()
     {
@@ -63,4 +72,5 @@ internal class Root : Node
     }
 
     public JsonNode? ToJsonNode() => Block.ToJsonNode();
+    public override int CalcDepth() => Block.Depth;
 }
