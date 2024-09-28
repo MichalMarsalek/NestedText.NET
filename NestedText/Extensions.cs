@@ -2,7 +2,7 @@
 
 internal static class Extensions
 {
-    internal static bool IsValidEndOfLineValue(this string value)
+    internal static bool IsValidRestOfLineValue(this string value)
         => !value.Contains('\n') && !value.Contains('\n');
 
     internal static IEnumerable<string> GetLines(this string value)

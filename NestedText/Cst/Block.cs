@@ -118,7 +118,8 @@ internal class Block : Node
     internal Block Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        return fmt.SkipAll ? this : new Block(Lines.Select(x => x.Transform(options, indentation)));
+        if (fmt.SkipAll || !Lines.Any()) return this;
+        return new Block(Lines.Select(x => x.Transform(options, indentation)));
     }
 
     /// <summary>
@@ -237,7 +238,7 @@ internal class Block : Node
                         if (x is JsonValue xValue && xValue.GetValueKind() == JsonValueKind.String)
                         {
                             var xString = xValue.GetValue<string>();
-                            if (xString.IsValidEndOfLineValue()) return new ListItemLine
+                            if (xString.IsValidRestOfLineValue()) return new ListItemLine
                             {
                                 Indentation = indentation,
                                 RestOfLine = xString.EmptyToNull()
@@ -259,7 +260,7 @@ internal class Block : Node
                     {
                         if (prop.Key.IsValidKey())
                         {
-                            if (prop.Value!.GetValueKind() == JsonValueKind.String && prop.Value.GetValue<string>().IsValidEndOfLineValue())
+                            if (prop.Value!.GetValueKind() == JsonValueKind.String && prop.Value.GetValue<string>().IsValidRestOfLineValue())
                             {
                                 return [new DictionaryItemLine
                                 {
@@ -296,5 +297,23 @@ internal class Block : Node
             throw new NestedTextSerializeException($"Unexpected kind {node.GetValueKind()}.");
         }
         return FromJsonNodeImpl(node, 0);
+    }
+
+    internal string? GetRestOfLineValidStringValue()
+    {
+        if (Kind != BlockKind.String) return null;
+        string? result = null;
+        foreach (var line in Lines)
+        {
+            if (line is StringLine stringLine)
+            {
+                if (result != null) return null;
+                if (!stringLine.Value.IsValidRestOfLineValue()) return null;
+                result = stringLine.Value;
+            }
+            else if (line is not BlankLine) return null;
+            if (line.Nested.Lines.Any()) return null;
+        }
+        return result;
     }
 }

@@ -41,37 +41,33 @@ internal abstract class IgnoredLine : Line
 }
 
 internal class BlankLine : IgnoredLine {
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new BlankLine {
-        LineNumber = LineNumber,
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        Content = Content, 
-    };
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation) {
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
 }
 internal class CommentLine : IgnoredLine
 {
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append("#" + Content);
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new CommentLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        LineNumber = LineNumber,
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        Content = Content,
-    };
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
     public override List<CommentLine> CalcComments() => [this, ..Nested.Comments];
 }
 internal class ErrorLine : IgnoredLine
 {
     public required string Message { get; set; }
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new ErrorLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        LineNumber = LineNumber,
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        Content = Content,
-        Message = Message
-    };
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
 }
 
 internal abstract class ValueLine : Line { }
@@ -84,13 +80,12 @@ internal class StringLine : ValueLine
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(Value == "" ? ">" : "> ").Append(Value);
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new StringLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        LineNumber = LineNumber,
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        Value = Value,
-    };
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
 }
 
 internal class ListItemLine : ValueLine
@@ -119,13 +114,22 @@ internal class ListItemLine : ValueLine
         }
         return Nested.Errors;
     }
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new ListItemLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        LineNumber = LineNumber,
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        RestOfLine = RestOfLine,
-    };
+        var fmt = options.FormatOptions;
+        if (!fmt.SkipRestOfLine && RestOfLine == null)
+        {
+            var restOfLine = Nested.GetRestOfLineValidStringValue();
+            if (restOfLine != null)
+            {
+                RestOfLine = restOfLine;
+                Nested = new();
+            }
+        }
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
 }
 
 internal abstract class DictionaryLine : ValueLine { }
@@ -159,27 +163,34 @@ internal class DictionaryItemLine : DictionaryLine
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(Key).Append(KeyTrailingWhiteSpace).Append(RestOfLine == null ? ":" : ": " + RestOfLine);
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new DictionaryItemLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        LineNumber = LineNumber,
-        Indentation = indentation,
-        KeyTrailingWhiteSpace = KeyTrailingWhiteSpace,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        RestOfLine = RestOfLine,
-        Key = Key
-    };
+        var fmt = options.FormatOptions;
+        if (!fmt.SkipRestOfLine && RestOfLine == null)
+        {
+            var restOfLine = Nested.GetRestOfLineValidStringValue();
+            if (restOfLine != null)
+            {
+                RestOfLine = restOfLine;
+                Nested = new();
+            }
+        }
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
 }
 
 internal class KeyItemLine : DictionaryLine
 {
     public required string Key { set; get; }
     public override int CalcDepth() => Nested.Depth;
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new KeyItemLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        Key = Key,
-    };
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        return this;
+    }
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(Key == "" ? ":" : ": ").Append(Key);
 }
@@ -190,11 +201,12 @@ internal class InlineLine : Line
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => Inline.Append(builder);
     public override int CalcDepth() => Inline.Depth;
-    internal override Line Transform(NestedTextSerializerOptions options, int indentation) => new InlineLine
+    internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
-        Indentation = indentation,
-        Nested = Nested.Transform(options, indentation + options.Indentation),
-        Inline = options.FormatOptions.SkipInlineItemsAlignment ? Inline : Inline.Transform(options, true),
-    };
+        Indentation = indentation;
+        Nested = Nested.Transform(options, indentation + options.Indentation);
+        Inline = options.FormatOptions.SkipInlineItemsAlignment ? Inline : Inline.Transform(options, true);
+        return this;
+    }
     public override IEnumerable<ParsingError> CalcErrors() => Inline.Errors;
 }

@@ -1,0 +1,7 @@
+a:
+  > line 1
+  > line 2
+b:
+  # This value is not converted to a Rest of line string, because of this comment, but the next one is.
+  > value b
+c: value c

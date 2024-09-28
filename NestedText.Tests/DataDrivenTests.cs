@@ -107,7 +107,7 @@ public class DataDrivenTests
         {
             var formatIn = Read("format_in.nt");
             var formatOut = Read("format_out.nt")?.GetLines().JoinLines();
-            var formatOptions = ReadJson<NestedTextSerializerOptions>("format_options.json") ?? new() { MaxDepthToInline = 0, Indentation = 4 };
+            var formatOptions = ReadJson<NestedTextSerializerOptions>("format_options.json") ?? new();
 
             if (formatIn != null && formatOut != null)
             {
