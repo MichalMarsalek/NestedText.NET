@@ -1,6 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using NestedText.Converters;
 using NestedText.Cst;
 [assembly: InternalsVisibleTo("NestedText.Tests")]
 
@@ -29,11 +31,12 @@ public static class NestedTextSerializer
     /// <returns>Serialized data.</returns>
     public static string Serialize<T>(T data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
+        (options, jsonOptions) = EnhanceOptions(options, jsonOptions);
         if (data is JsonNode node)
         {
-            return Block.FromJsonNode(node, options ?? new()).ToString();
+            return Block.FromJsonNode(node, options).ToString();
         }
-        return Block.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options ?? new()).ToString();
+        return Block.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options).ToString();
     }
 
     /// <summary>
@@ -45,7 +48,7 @@ public static class NestedTextSerializer
     /// <returns>Deserialized data.</returns>
     public static T Deserialize<T>(string data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
-        options ??= new();
+        (options, jsonOptions) = EnhanceOptions(options, jsonOptions);
         var cst = Parser.Parse(data, options);
         var errors = options.ThrowOnUnterminated ? cst.Errors : cst.Errors.Where(x => x is not UnterminatedDocumentParsingError);
         if (errors.Any())
@@ -74,5 +77,22 @@ public static class NestedTextSerializer
             }
         }
         return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
+    }
+
+    private static (NestedTextSerializerOptions, JsonSerializerOptions) EnhanceOptions(NestedTextSerializerOptions? options, JsonSerializerOptions? jsonOptions)
+    {
+        jsonOptions ??= new();
+        options ??= new();
+        if (options.UseDefaultConventions)
+        {
+            jsonOptions = new JsonSerializerOptions(jsonOptions);
+            jsonOptions.Converters.Insert(0, new BoolConverter());
+            jsonOptions.Converters.Insert(1, new JsonStringEnumConverter(new SpaceCaseNamingPolicy()));
+            jsonOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
+            jsonOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            jsonOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip;
+            jsonOptions.PropertyNamingPolicy = new SpaceCaseNamingPolicy();
+        }
+        return (options, jsonOptions);
     }
 }

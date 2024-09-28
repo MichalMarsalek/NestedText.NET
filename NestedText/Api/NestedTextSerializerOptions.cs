@@ -23,9 +23,15 @@ public class NestedTextSerializerOptions
     public bool UseRestOfLineStrings { get; set; } = true;
 
     /// <summary>
-    /// Whether to automatically support conversion between null, integers, doubles & booleans and their string representations.
+    /// Enables some convenient default behaviour. Namely:
+    /// <list type="bullet">
+    /// <item>(De)serialization of boolean &amp; number types.</item>
+    /// <item>Lower case policy for property names.</item>
+    /// <item>Lower case policy for enum members.</item>
+    /// <item>(De)serialization of nulls as missing items.</item>
+    /// </list>
     /// </summary>
-    public bool UseDefaultConverters { get; set; } = false;
+    public bool UseDefaultConventions { get; set; } = false;
 
     /// <summary>
     /// How to interpret an empty document.

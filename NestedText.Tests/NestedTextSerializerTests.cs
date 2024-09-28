@@ -5,10 +5,10 @@ namespace NestedText.Tests;
 
 public class NestedTextSerializerTests
 {
+    private readonly string NL = Environment.NewLine;
     [Fact]
     public void Deserialize_OnOfficers_ReturnsObject()
     {
-        var NL = Environment.NewLine;
         const string input = """
             # Contact information for our officers
 
@@ -67,7 +67,7 @@ public class NestedTextSerializerTests
                 Kids = ["Arnie", "Zach", "Maggie"]
             }
         };
-        var res = NestedTextSerializer.Deserialize<Dictionary<string, Officer>>(input, null, new(JsonSerializerDefaults.Web));
+        var res = NestedTextSerializer.Deserialize<Dictionary<string, Officer>>(input, new() { UseDefaultConventions = true });
         res.Should().BeEquivalentTo(expected);
     }
 
@@ -81,8 +81,8 @@ public class NestedTextSerializerTests
     [Fact]
     public void Serialize_IntWithUseDefaultConverters_ReturnsAsString()
     {
-        var actual = NestedTextSerializer.Serialize(0, new() { UseDefaultConverters = true });
-        actual.Should().BeEquivalentTo("> 0\n");
+        var actual = NestedTextSerializer.Serialize(0, new() { UseDefaultConventions = true });
+        actual.Should().BeEquivalentTo("> 0" + NL);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class NestedTextSerializerTests
     [Fact]
     public void Deserialize_IntWithUseDefaultConverters_ReturnsAsString()
     {
-        var actual = NestedTextSerializer.Deserialize<int>("> 0\n", new() { UseDefaultConverters = true });
+        var actual = NestedTextSerializer.Deserialize<int>("> 0\n", new() { UseDefaultConventions = true });
         actual.Should().Be(0);
     }
 
@@ -107,10 +107,77 @@ public class NestedTextSerializerTests
     }
 
     [Fact]
-    public void Deserialize_UnterminatedWithoutThrowOnUnterminated_Throws()
+    public void Deserialize_UnterminatedWithoutThrowOnUnterminated_Returns()
     {
         var actual = NestedTextSerializer.Deserialize<string>("> x", new() { ThrowOnUnterminated = false });
         actual.Should().BeEquivalentTo("x");
+    }
+
+    private readonly Model1 testObject1 = new()
+    {
+        TextProperty = "x",
+        IntProperty = 3,
+        FloatProperty = 3.14f,
+        BoolProperty = true,
+        EnumProperty = Enum1.FirstEnumMember
+    };
+
+    private readonly string testObjectNt1 = """
+        text property: x
+        int property: 3
+        float property: 3.14
+        bool property: true
+        enum property: first enum member
+
+        """;
+
+    [Fact]
+    public void Serialize_ObjectWithScalarPropsWithUseDefaultConverters_ReturnsObject()
+    {
+        var actual = NestedTextSerializer.Serialize(testObject1, new() { UseDefaultConventions = true });
+        actual.Should().BeEquivalentTo(testObjectNt1.GetLines().JoinLines());
+    }
+
+    [Fact]
+    public void Deserialize_ObjectWithScalarPropsWithUseDefaultConverters_ReturnsObject()
+    {
+        var actual = NestedTextSerializer.Deserialize<Model1>(testObjectNt1, new() { UseDefaultConventions = true });
+        actual.Should().BeEquivalentTo(testObject1);
+    }
+
+    [Fact]
+    public void Deserialize_EmptyDocumentAsObject_ReturnsEmptyObject()
+    {
+        var actual = NestedTextSerializer.Deserialize<Model2>(NL);
+        actual.Should().BeEquivalentTo(new Model2());
+    }
+
+    [Fact]
+    public void Deserialize_EmptyDocumentAsObjectWhichHasRequiredProperties_ReturnsNull()
+    {
+        var actual = NestedTextSerializer.Deserialize<Model1>(NL);
+        actual.Should().BeEquivalentTo(null as Model1);
+    }
+
+    [Fact]
+    public void Deserialize_EmptyDocumentAsString_ReturnsEmptyString()
+    {
+        var actual = NestedTextSerializer.Deserialize<string>(NL);
+        actual.Should().BeEquivalentTo("");
+    }
+
+    [Fact]
+    public void Deserialize_EmptyDocumentAsList_ReturnsEmptyList()
+    {
+        var actual = NestedTextSerializer.Deserialize<List<Model2>>(NL);
+        actual.Should().BeEquivalentTo(new List<Model2>());
+    }
+
+    [Fact]
+    public void Deserialize_EmptyDocumentAsDictionary_ReturnsEmptyDictionary()
+    {
+        var actual = NestedTextSerializer.Deserialize<Dictionary<string,string>>(NL);
+        actual.Should().BeEquivalentTo(new Dictionary<string, string>());
     }
 }
 
@@ -128,3 +195,19 @@ internal class PhoneNumbers
     public string? Work { get; set; }
     public string? Home { get; set; }
 }
+
+internal class Model1
+{
+    public required string TextProperty { get; set; }
+    public required int IntProperty { get; set; }
+    public required float FloatProperty { get; set; }
+    public required bool BoolProperty { get; set; }
+    public required Enum1 EnumProperty { get; set; }
+}
+
+internal class Model2
+{
+    public string? Property { get; set; }
+}
+
+internal enum Enum1 { FirstEnumMember, SecondEnumMember };
