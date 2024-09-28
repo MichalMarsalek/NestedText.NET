@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace NestedText.Converters
 {
-    public partial class SpaceCaseNamingPolicy : JsonNamingPolicy
+    public partial class LowerCaseNamingPolicy : JsonNamingPolicy
     {
         [GeneratedRegex("(?<!^)([A-Z][a-z]|(?<=[a-z])[^a-z]|(?<=[A-Z])[0-9_])")]
         private static partial Regex CamelCaseWordsRegex();

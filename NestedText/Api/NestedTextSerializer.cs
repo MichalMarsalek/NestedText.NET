@@ -87,11 +87,11 @@ public static class NestedTextSerializer
         {
             jsonOptions = new JsonSerializerOptions(jsonOptions);
             jsonOptions.Converters.Insert(0, new BoolConverter());
-            jsonOptions.Converters.Insert(1, new JsonStringEnumConverter(new SpaceCaseNamingPolicy()));
+            jsonOptions.Converters.Insert(1, new JsonStringEnumConverter(new LowerCaseNamingPolicy()));
             jsonOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
             jsonOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             jsonOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip;
-            jsonOptions.PropertyNamingPolicy = new SpaceCaseNamingPolicy();
+            jsonOptions.PropertyNamingPolicy = new LowerCaseNamingPolicy();
         }
         return (options, jsonOptions);
     }
