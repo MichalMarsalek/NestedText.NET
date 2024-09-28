@@ -7,7 +7,7 @@ namespace NestedText.Cst;
 internal enum BlockKind { String, List, Dictionary, Inline }
 internal class Block : Node
 {
-    public IReadOnlyCollection<Line> Lines { get; private set; } = [];
+    public List<Line> Lines { get; private set; } = [];
     public BlockKind? Kind { get; private set; }
     public int? Indentation { get; private set; }
     public Block(IEnumerable<Line>? lines = null)
@@ -119,7 +119,85 @@ internal class Block : Node
     {
         var fmt = options.FormatOptions;
         if (fmt.SkipAll || !Lines.Any()) return this;
-        return new Block(Lines.Select(x => x.Transform(options, indentation)));
+
+        for (var i = 0; i < Lines.Count; i++)
+        {
+            var line = Lines[i];
+            if (line is InlineLine inlineLine && !fmt.SkipInlineToMultiline && !inlineLine.Inline.Errors.Any())
+            {
+                if (options.MaxDepthToInline != null && options.MaxDepthToInline.Value < line.Depth || options.MaxLineLengthToInline != null && options.MaxLineLengthToInline.Value < line.ToStringLength())
+                {
+                    if (inlineLine.Inline is InlineList inlineList)
+                    {
+                        var newLines = inlineList.Values.Select(x => {
+                            var newListItem = new ListItemLine
+                            {
+                                Indentation = indentation,
+                            };
+                            if (x is InlineString inlineString)
+                            {
+                                var stringValue = inlineString.Value;
+                                if (options.UseRestOfLineStrings && stringValue.IsValidRestOfLineValue())
+                                {
+                                    newListItem.RestOfLine = stringValue;
+                                }
+                                else
+                                {
+                                    newListItem.Nested = new Block(stringValue.GetLines().Select(x => new StringLine { Indentation = indentation + options.Indentation, Value = x }));
+                                }
+                            }
+                            else
+                            {
+                                x.LeadingWhiteSpace = "";
+                                newListItem.Nested = new Block([new InlineLine { Indentation = 0, Inline = x }]).Transform(options, indentation + options.Indentation);
+                            }
+                            return newListItem;
+                        });
+                        Lines[i] = newLines.First();
+                        Lines.InsertRange(i + 1, newLines.Skip(1));
+                        i += inlineList.Values.Count() - 1;
+                        continue;
+                    }
+                    if (inlineLine.Inline is InlineDictionary inlineDict)
+                    {
+                        var newLines = inlineDict.KeyValues.Select(x => {
+                            var key = (InlineString)x[0];
+                            var value = x[1];
+                            var newDictItem = new DictionaryItemLine
+                            {
+                                Key = key.Value,
+                                KeyTrailingWhiteSpace = key.Suffix,
+                                Indentation = indentation,
+                            };
+                            if (value is InlineString inlineString)
+                            {
+                                var stringValue = inlineString.Value;
+                                if (options.UseRestOfLineStrings && stringValue.IsValidRestOfLineValue())
+                                {
+                                    newDictItem.RestOfLine = stringValue;
+                                }
+                                else
+                                {
+                                    newDictItem.Nested = new Block(stringValue.GetLines().Select(x => new StringLine { Indentation = indentation + options.Indentation, Value = x }));
+                                }
+                            }
+                            else
+                            {
+                                value.LeadingWhiteSpace = "";
+                                newDictItem.Nested = new Block([new InlineLine { Indentation = 0, Inline = value }]).Transform(options, indentation + options.Indentation);
+                            }
+                            return newDictItem;
+                        });
+                        Lines[i] = newLines.First();
+                        Lines.InsertRange(i + 1, newLines.Skip(1));
+                        i += inlineDict.KeyValues.Count() - 1;
+                        continue;
+                    }
+                }
+            }
+            Lines[i] = line.Transform(options, indentation);
+        }
+        return this;
     }
 
     /// <summary>

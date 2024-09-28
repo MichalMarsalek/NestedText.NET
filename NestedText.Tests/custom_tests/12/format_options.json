@@ -1,0 +1,7 @@
+{
+  "MaxDepthToInline": 2,
+  "MaxLineLengthToInline": 60,
+  "FormatOptions": {
+    "SkipInlineItemsAlignment": true
+  }
+}

@@ -49,7 +49,7 @@ internal class InlineList : Inline
 {
     public required IEnumerable<Inline> Values { get; set; }
     public bool Unterminated { get; set; }
-    public override int CalcDepth() => Values.Max(x => x.Depth);
+    public override int CalcDepth() => 1 + (Values.Any() ? Values.Max(x => x.Depth) : 0);
     public override IEnumerable<ParsingError> CalcErrors()
     {
         foreach (var item in Values)
@@ -99,7 +99,7 @@ internal class InlineDictionary : Inline
 {
     public required IEnumerable<List<Inline>> KeyValues { get; set; }
     public bool Unterminated { get; set; }
-    public override int CalcDepth() => KeyValues.Any(x => x.Count == 2) ? KeyValues.Where(x => x.Count == 2).Max(x => x[1].Depth) : 0;
+    public override int CalcDepth() => 1 + (KeyValues.Any(x => x.Count == 2) ? KeyValues.Where(x => x.Count == 2).Max(x => x[1].Depth) : 0);
     public override IEnumerable<ParsingError> CalcErrors()
     {
         var keys = new HashSet<string>();

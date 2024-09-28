@@ -44,7 +44,13 @@ internal abstract class Node
         Append(builder);
         return builder.ToString();
     }
-    
+    public int ToStringLength()
+    {
+        var builder = new StringBuilder();
+        Append(builder);
+        return builder.Length;
+    }
+
     /// <summary>
     /// Emits the node.
     /// </summary>
