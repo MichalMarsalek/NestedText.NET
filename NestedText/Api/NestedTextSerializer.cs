@@ -19,7 +19,8 @@ public static class NestedTextSerializer
     /// <returns>Formatted source.</returns>
     public static string Format(string source, NestedTextSerializerOptions? options = null)
     {
-        return Parser.Parse(source, options).Transform(options ?? new()).ToString();
+        var cst = Parser.Parse(source, options);
+        return cst.Transform(options ?? new()).ToString();
     }
 
     /// <summary>

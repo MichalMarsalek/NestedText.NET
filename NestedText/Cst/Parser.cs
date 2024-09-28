@@ -24,9 +24,9 @@ internal static class Parser
             line.LineNumber = lineNumber;
             line.Indentation = lineIndent;
 
-            if (line is IgnoredLine ignoredLine)
+            if (line is BlankLine || line is CommentLine)
             {
-                toBePlacedIgnoredLines.Add(ignoredLine);
+                toBePlacedIgnoredLines.Add((IgnoredLine)line);
             }
             else
             {
@@ -45,7 +45,14 @@ internal static class Parser
                     currentMultilineLast.Nested = new Block(terminatedMultiline);
                 }
 
-                if (lineIndent > currentIndent && currentMultiline.Any() && !currentMultiline.Last().Nested.Lines.Any())
+                if (currentIndent == 0 && lineIndent > 0 && !currentMultiline.Any())
+                {
+                    currentIndent = lineIndent;
+                    indentStack.Pop();
+                    indentStack.Push(currentIndent);
+                }
+
+                if (lineIndent > currentIndent && !currentMultiline.Last().Nested.Lines.Any())
                 {
                     multilinesStack.Push(new List<Line>(toBePlacedIgnoredLines) { line });
                     toBePlacedIgnoredLines.Clear();
