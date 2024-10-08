@@ -34,7 +34,7 @@ internal static class Parser
                 var currentMultiline = multilinesStack.Peek();
                 var currentIndent = indentStack.Peek();
 
-                while (lineIndent < currentIndent && indentStack.Any())
+                while (lineIndent < currentIndent && indentStack.Count > 1)
                 {
                     var terminatedMultiline = multilinesStack.Pop();
                     terminatedMultiline.AddRange(toBePlacedIgnoredLines);

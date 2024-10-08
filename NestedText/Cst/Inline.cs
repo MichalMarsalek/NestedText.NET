@@ -64,14 +64,17 @@ internal class InlineList : Inline
         if (Unterminated)
         {
             var message = "Unterminated inline list.";
-            message += ValueEnd >= Line.RawLine.Length ? " Line ended without closing delimiter." : $" Expected ',' or ']', found '{Line.RawLine[ValueEnd]}'.";
+            message += ValueEnd >= Line.RawLine.Length ? " Line ended without closing delimiter."
+                : ValueStart + 1 == ValueEnd ? " Expected value."
+                : $" Expected ',' or ']', found '{Line.RawLine[ValueEnd]}'.";
             yield return ToError(message, ValueEnd);
         }
         if (!Suffix.IsWhiteSpace())
         {
+            var suffix = SuffixNonWhiteSpace;
             if (ValueStart == Line.Indentation)
             {
-                yield return ToError($"Extra characters after closing delimiter: '{SuffixNonWhiteSpace}'.", SuffixNonWhiteSpaceStart);
+                yield return ToError($"Extra character{(SuffixNonWhiteSpace.Length > 1 ? "s" : "")} after closing delimiter: '{SuffixNonWhiteSpace}'.", SuffixNonWhiteSpaceStart);
             }
             else
             {
@@ -116,18 +119,31 @@ internal class InlineDictionary : Inline
         var keys = new HashSet<string>();
         foreach (var item in KeyValues)
         {
+            var keyErrorYielded = false;
+            if (item[0] is InlineString stringNode)
+            {
+                if (!keys.Add(stringNode.Value))
+                {
+                    yield return ToError("Duplicate dictionary key.", stringNode.ValueStart);
+                }
+                if (!stringNode.Suffix.IsWhiteSpace())
+                {
+                    keyErrorYielded = true;
+                    yield return ToError($"Extra character after string value. Expected ':', found '{stringNode.SuffixNonWhiteSpace[0]}'.", stringNode.SuffixNonWhiteSpaceStart);
+                }
+            }
+            else
+            {
+                yield return ToError($"Key must be an inline string. Expected ':', found '{Line.RawLine[item[0].ValueStart]}'.", item[0].ValueStart);
+            }
             if (item.Count != 2)
             {
-                var message = $"Key value pair expected, but found {item.Count} colon separated values.";
+                var message = $"Key value pair expected, but found {item.Count} colon separated value{(item.Count > 1 ? "s" : "")}.";
                 int offset;
                 if (item.Count == 1)
                 {
                     offset = item[0].ValueEnd;
-                    if (item[0].ValueStart == item[0].ValueEnd)
-                    {
-                        message += " Expected value.";
-                    }
-                    else if (offset >= Line.RawLine.Length)
+                    if (offset >= Line.RawLine.Length)
                     {
                         message += " Line ended without closing delimiter.";
                     }
@@ -142,37 +158,33 @@ internal class InlineDictionary : Inline
                 }
                 yield return ToError(message, offset);
             }
-            if (item[0] is InlineString stringNode)
-            {
-                if (!keys.Add(stringNode.Value))
-                {
-                    yield return ToError("Duplicate dictionary key.", stringNode.ValueStart);
-                }
-            }
-            else
-            {
-                yield return ToError($"Key must be an inline string. Expected ':', found '{Line.RawLine[item[0].ValueStart]}'.", item[0].ValueStart);
-            }
 
+            var xi = 0;
             foreach (var x in item)
             {
-                foreach(var error in x.Errors)
+                if (xi > 0 || !keyErrorYielded)
                 {
-                    yield return error;
+                    foreach (var error in x.Errors)
+                    {
+                        yield return error;
+                    }
                 }
+                xi++;
             }
         }
         if (Unterminated)
         {
             var message = "Unterminated inline dictionary.";
-            message +=ValueEnd >= Line.RawLine.Length ? " Line ended without closing delimiter." : $"Expected ',' or '}}', found '{Line.RawLine[ValueEnd]}'.";
+            message += ValueEnd >= Line.RawLine.Length ? " Line ended without closing delimiter."
+                : ValueStart + 1 == ValueEnd ? " Expected value."
+                : $" Expected ',' or '}}', found '{Line.RawLine[ValueEnd]}'.";
             yield return ToError(message, ValueEnd);
         }
         if (!Suffix.IsWhiteSpace())
         {
             if (ValueStart == Line.Indentation)
             {
-                yield return ToError($"Extra characters after closing delimiter: '{SuffixNonWhiteSpace}'.", SuffixNonWhiteSpaceStart);
+                yield return ToError($"Extra character{(SuffixNonWhiteSpace.Length > 1 ? "s" : "")} after closing delimiter: '{SuffixNonWhiteSpace}'.", SuffixNonWhiteSpaceStart);
             }
             else
             {
