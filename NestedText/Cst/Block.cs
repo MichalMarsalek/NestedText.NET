@@ -57,7 +57,7 @@ internal class Block : Node
             }
             else if (Kind == BlockKind.Inline)
             {
-                if (line is not InlineLine) yield return line.ToError("Unexpected node.");
+                if (line is not InlineLine) yield return line.ToError("Unexpected node after inline value. Extra content.");
                 if (inlineAlreadySeen)
                 {
                     yield return line.ToError("Only one inline line allowed in a block.");

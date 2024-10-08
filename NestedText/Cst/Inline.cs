@@ -26,7 +26,7 @@ internal class InlineString : Inline
 {
     public required string Value { get; set; }
     public override IEnumerable<ParsingError> CalcErrors()
-        => Suffix.IsWhiteSpace() ? [] : [ToError($"Extra character after closing delimiter: '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart)];
+        => Suffix.IsWhiteSpace() ? [] : [ToError($"Extra character after string value. Expected ',' or '}}', found '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart)];
     public override int CalcDepth() => 1;
 
     internal override Inline Transform(NestedTextSerializerOptions options, bool isFirst)
@@ -56,16 +56,27 @@ internal class InlineList : Inline
         {
             foreach (var error in item.Errors)
             {
-                yield return error;
+                // This is slightly hacky.
+                // Inline nodes assume they are inside a dictionary by default, we need to adjust the error messages here, since they are not.
+                yield return new ParsingError(error.LineNumber, error.ColumnNumber, error.Message.Replace("',' or '}'", "',' or ']'"));
             }
         }
         if (Unterminated)
         {
-            yield return ToError("Unterminated inline list.", ValueEnd);
+            var message = "Unterminated inline list.";
+            message += ValueEnd >= Line.RawLine.Length ? " Line ended without closing delimiter." : $" Expected ',' or ']', found '{Line.RawLine[ValueEnd]}'.";
+            yield return ToError(message, ValueEnd);
         }
         if (!Suffix.IsWhiteSpace())
         {
-            yield return ToError($"Extra character after closing delimiter: '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart);
+            if (ValueStart == Line.Indentation)
+            {
+                yield return ToError($"Extra characters after closing delimiter: '{SuffixNonWhiteSpace}'.", SuffixNonWhiteSpaceStart);
+            }
+            else
+            {
+                yield return ToError($"Extra character after closing delimiter. Expected ':', found '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart);
+            }
         }
     }
 
@@ -105,6 +116,32 @@ internal class InlineDictionary : Inline
         var keys = new HashSet<string>();
         foreach (var item in KeyValues)
         {
+            if (item.Count != 2)
+            {
+                var message = $"Key value pair expected, but found {item.Count} colon separated values.";
+                int offset;
+                if (item.Count == 1)
+                {
+                    offset = item[0].ValueEnd;
+                    if (item[0].ValueStart == item[0].ValueEnd)
+                    {
+                        message += " Expected value.";
+                    }
+                    else if (offset >= Line.RawLine.Length)
+                    {
+                        message += " Line ended without closing delimiter.";
+                    }
+                    else
+                    {
+                        message += $" Expected ':', found '{Line.RawLine[offset]}'.";
+                    }
+                }
+                else
+                {
+                    offset = item[2].ValueStart;
+                }
+                yield return ToError(message, offset);
+            }
             if (item[0] is InlineString stringNode)
             {
                 if (!keys.Add(stringNode.Value))
@@ -114,12 +151,9 @@ internal class InlineDictionary : Inline
             }
             else
             {
-                yield return ToError($"Key must be an inline string.", item[0].ValueStart);
+                yield return ToError($"Key must be an inline string. Expected ':', found '{Line.RawLine[item[0].ValueStart]}'.", item[0].ValueStart);
             }
-            if (item.Count != 2)
-            {
-                yield return ToError($"Key value pair expected, but found {item.Count} colon separated values.", item.Count < 2 ? item[0].ValueEnd : item[2].ValueStart);
-            }
+
             foreach (var x in item)
             {
                 foreach(var error in x.Errors)
@@ -130,11 +164,20 @@ internal class InlineDictionary : Inline
         }
         if (Unterminated)
         {
-            yield return ToError("Unterminated inline dictionary.", ValueEnd);
+            var message = "Unterminated inline dictionary.";
+            message +=ValueEnd >= Line.RawLine.Length ? " Line ended without closing delimiter." : $"Expected ',' or '}}', found '{Line.RawLine[ValueEnd]}'.";
+            yield return ToError(message, ValueEnd);
         }
         if (!Suffix.IsWhiteSpace())
         {
-            yield return ToError($"Extra character after closing delimiter: '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart);
+            if (ValueStart == Line.Indentation)
+            {
+                yield return ToError($"Extra characters after closing delimiter: '{SuffixNonWhiteSpace}'.", SuffixNonWhiteSpaceStart);
+            }
+            else
+            {
+                yield return ToError($"Extra character after closing delimiter. Expected ':', found '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart);
+            }
         }
     }
 

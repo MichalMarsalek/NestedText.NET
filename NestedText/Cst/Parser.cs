@@ -23,6 +23,7 @@ internal static class Parser
             var line = ParseLine(rawLine, out var lineIndent);
             line.LineNumber = lineNumber;
             line.Indentation = lineIndent;
+            line.RawLine = rawLine;
 
             if (line is BlankLine || line is CommentLine)
             {

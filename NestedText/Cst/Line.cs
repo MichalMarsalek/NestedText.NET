@@ -7,6 +7,7 @@ namespace NestedText.Cst;
 
 internal abstract class Line : Node
 {
+    public string RawLine { get; set; } = "";
     public int Indentation { get; set; }
     public int LineNumber { get; set; }
     public Block Nested { get; set; } = new Block([]);
