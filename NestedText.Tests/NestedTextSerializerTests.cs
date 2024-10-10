@@ -74,7 +74,7 @@ public class NestedTextSerializerTests
     [Fact]
     public void Serialize_IntWithDefaultOptions_Throws()
     {
-        Func<string> act = () => NestedTextSerializer.Serialize(0);
+        var act = () => NestedTextSerializer.Serialize(0);
         act.Should().Throw<NestedTextSerializeException>();
     }
 
@@ -88,8 +88,8 @@ public class NestedTextSerializerTests
     [Fact]
     public void Deserialize_IntWithDefaultOptions_Throws()
     {
-        Func<int> act = () => NestedTextSerializer.Deserialize<int>("> 0\n");
-        act.Should().Throw<JsonException>();
+        var act = () => NestedTextSerializer.Deserialize<int>("> 0\n");
+        act.Should().Throw<NestedTextDeserializeException>();
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class NestedTextSerializerTests
     [Fact]
     public void Deserialize_UnterminatedWithDefaultOptions_Throws()
     {
-        Func<string> act = () => NestedTextSerializer.Deserialize<string>("> x");
+        var act = () => NestedTextSerializer.Deserialize<string>("> x");
         act.Should().Throw<NestedTextDeserializeException>();
     }
 
@@ -176,8 +176,17 @@ public class NestedTextSerializerTests
     [Fact]
     public void Deserialize_EmptyDocumentAsDictionary_ReturnsEmptyDictionary()
     {
-        var actual = NestedTextSerializer.Deserialize<Dictionary<string,string>>(NL);
+        var actual = NestedTextSerializer.Deserialize<Dictionary<string, string>>(NL);
         actual.Should().BeEquivalentTo(new Dictionary<string, string>());
+    }
+
+    [Fact]
+    public void Serialize_CyclicModelWithDefaultOptions_Throws()
+    {
+        var model = new CyclicModel { Ref = new() };
+        model.Ref.Ref = model;
+        var act = () => NestedTextSerializer.Serialize(model);
+        act.Should().Throw<NestedTextSerializeException>();
     }
 }
 
@@ -208,6 +217,11 @@ internal class Model1
 internal class Model2
 {
     public string? Property { get; set; }
+}
+
+internal class CyclicModel
+{
+    public CyclicModel Ref { get; set; }
 }
 
 internal enum Enum1 { FirstEnumMember, SecondEnumMember };

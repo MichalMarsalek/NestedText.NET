@@ -372,7 +372,7 @@ internal class Block : Node
                     })
                 );
             }
-            throw new NestedTextSerializeException($"Unexpected kind {node.GetValueKind()}.");
+            throw new NestedTextSerializeException($"Unexpected type {node.GetValueKind()}. To serialize boolean/numeric types, define custom converters or set {nameof(NestedTextSerializerOptions.UseDefaultConventions)} = true.");
         }
         return FromJsonNodeImpl(node, 0);
     }

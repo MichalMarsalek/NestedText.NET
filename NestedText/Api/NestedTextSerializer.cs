@@ -33,11 +33,26 @@ public static class NestedTextSerializer
     public static string Serialize<T>(T data, NestedTextSerializerOptions? options = null, JsonSerializerOptions? jsonOptions = null)
     {
         (options, jsonOptions) = EnhanceOptions(options, jsonOptions);
-        if (data is JsonNode node)
+        try
         {
-            return Block.FromJsonNode(node, options).ToString();
+            if (data is JsonNode node)
+            {
+                return Block.FromJsonNode(node, options).ToString();
+            }
+            return Block.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options).ToString();
         }
-        return Block.FromJsonNode(JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(data, jsonOptions), jsonOptions)!, options).ToString();
+        catch (JsonException ex)
+        {
+            if (ex.Message.Contains("A possible object cycle detected."))
+            {
+                throw new NestedTextSerializeException(ex.Message, ex);
+            }
+            throw new NestedTextSerializeException("Unknown json exception encountered while serializing.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new NestedTextSerializeException("Unknown exception encountered while serializing.", ex);
+        }
     }
 
     /// <summary>
@@ -77,7 +92,22 @@ public static class NestedTextSerializer
                 catch { }
             }
         }
-        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
+        try
+        {
+            return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(jsonNode, jsonOptions), jsonOptions)!;
+        }
+        catch (JsonException ex)
+        {
+            if (ex.InnerException?.Message.Contains("get the value of a token type") ?? false)
+            {
+                throw new NestedTextDeserializeException(ex.InnerException!.Message.Replace("get the value of a token type", "interpret") + $" To deserialize boolean/numeric types, define custom converters or set {nameof(NestedTextSerializerOptions.UseDefaultConventions)} = true.", ex);
+            }
+            throw new NestedTextDeserializeException("Unknown json exception encountered while deserializing.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new NestedTextSerializeException("Unknown exception encountered while deserializing.", ex);
+        }
     }
 
     private static (NestedTextSerializerOptions, JsonSerializerOptions) EnhanceOptions(NestedTextSerializerOptions? options, JsonSerializerOptions? jsonOptions)

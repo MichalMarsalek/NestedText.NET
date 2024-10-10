@@ -11,5 +11,7 @@ public class NestedTextDeserializeException : Exception
     {
         Errors = errors;
     }
-    public IEnumerable<ParsingError> Errors { get; set; }
+    public NestedTextDeserializeException(string message, Exception? inner = null)
+        : base(message, inner) {}
+    public IEnumerable<ParsingError> Errors { get; set; } = [];
 }
