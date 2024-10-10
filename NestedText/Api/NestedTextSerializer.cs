@@ -119,7 +119,7 @@ public static class NestedTextSerializer
             jsonOptions = new JsonSerializerOptions(jsonOptions);
             jsonOptions.Converters.Insert(0, new BoolConverter());
             jsonOptions.Converters.Insert(1, new JsonStringEnumConverter(new LowerCaseNamingPolicy()));
-            jsonOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
+            jsonOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.AllowNamedFloatingPointLiterals | JsonNumberHandling.WriteAsString;
             jsonOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             jsonOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip;
             jsonOptions.PropertyNamingPolicy = new LowerCaseNamingPolicy();
