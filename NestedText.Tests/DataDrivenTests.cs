@@ -69,6 +69,10 @@ public class DataDrivenTests
 
                     if (!skipErrorMessageMatchingTests.Contains(name))
                     {
+                        if (loadError.Message.Contains("found"))
+                        {
+                            throw new Exception(loadError.Message + string.Join(" ", loadError.Message.Select(x => (int)x)));
+                        }
                         var expectedMessage = loadError.Message;
                         expectedMessage = Regex.Replace(expectedMessage, @"duplicate key: (.*)\.", "duplicate key: '$1'.");
                         expectedMessage = expectedMessage.Replace("‘", "'").Replace("’", "'");
