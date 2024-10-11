@@ -76,7 +76,7 @@ public class DataDrivenTests
                         var expectedMessage = loadError.Message;
                         expectedMessage = Regex.Replace(expectedMessage, @"duplicate key: (.*)\.", "duplicate key: '$1'.");
                         expectedMessage = expectedMessage.Replace("‘", "'").Replace("’", "'");
-                        expectedMessage = Regex.Replace(expectedMessage, @"indentation: '\\.*'.*", "indentation:");
+                        expectedMessage = Regex.Replace(expectedMessage, @"indentation: '\\.*'.*", "indentation:") +"---";
                         actual.Errors.First().Message.Should().ContainEquivalentOf(expectedMessage);
                     }
                 }
