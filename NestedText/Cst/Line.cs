@@ -43,7 +43,7 @@ internal abstract class IgnoredLine : Line
 internal class BlankLine : IgnoredLine {
     internal override Line Transform(NestedTextSerializerOptions options, int indentation) {
         var fmt = options.FormatOptions;
-        if (fmt.Indentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = 0;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }

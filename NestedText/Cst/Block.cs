@@ -124,11 +124,19 @@ internal class Block : Node
         if (fmt.MultilineToInline && (Kind == BlockKind.List || Kind == BlockKind.Dictionary) && !Errors.Any() && (options.MaxDepthToInline == null || Depth <= options.MaxDepthToInline.Value))
         {
             var firstValueLine = Lines.OfType<ValueLine>().FirstOrDefault();
+            var lastValueLine = Lines.OfType<ValueLine>().LastOrDefault();
             if (firstValueLine != null)
             {
-                var leadingComments = Lines.TakeWhile(line => line.LineNumber < firstValueLine.LineNumber);
-                var anyTrailingComments = Lines.SkipWhile(line => line.LineNumber < firstValueLine.LineNumber).Any(x => x.Comments.Any());
-                if (!anyTrailingComments)
+                List<Line> leadingComments = [];
+                bool anyMiddleComments = false;
+                List<Line> trailingComments = [];
+                foreach(var line in Lines)
+                {
+                    if (line.LineNumber < firstValueLine.LineNumber) leadingComments.Add(line);
+                    else if (line.LineNumber > lastValueLine!.LineNumber) trailingComments.Add(line);
+                    else anyMiddleComments |= line.Comments.Any();
+                }
+                if (!anyMiddleComments)
                 {
                     var jsonNode = ToJsonNode()!;
                     if (IsValidInlineValue(jsonNode, options.MaxDepthToInline, false))
@@ -136,7 +144,11 @@ internal class Block : Node
                         var inlineLine = new InlineLine { Indentation = indentation, Inline = InlineFromJsonNode(jsonNode) };
                         if (options.MaxLineLengthToInline == null || inlineLine.ToStringLength() <= options.MaxLineLengthToInline.Value)
                         {
-                            return new Block([.. leadingComments, inlineLine]);
+                            return new Block([
+                                .. leadingComments.Select(x => x.Transform(options, indentation)),
+                                inlineLine,
+                                ..trailingComments.Select(x => x.Transform(options, indentation))
+                            ]);
                         }
                     }
                 }

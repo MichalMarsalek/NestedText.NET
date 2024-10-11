@@ -4,6 +4,7 @@
   - item 1
   - item 2
   - item 3
+  # Trailing comments behave the same way.
 -
   - item A
   # Other comments prevent the conversion
