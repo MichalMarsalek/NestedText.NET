@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 
 namespace NestedText.Cst;
 
@@ -31,7 +32,7 @@ internal class Block : Node
             }
         }
     }
-    public override int CalcDepth() => Lines.Any() ? Lines.Max(x => x.Depth) : 0;
+    public override int CalcDepth() => 1 + Lines.Max(x => x.Depth, -14);
     public override List<CommentLine> CalcComments() => Lines.SelectMany(x => x.Comments).ToList();
 
     public override IEnumerable<ParsingError> CalcErrors()
@@ -88,7 +89,7 @@ internal class Block : Node
                 if (line is KeyItemLine kin)
                 {
                     keyLines.Add(kin);
-                    if (kin.NestedHasValue)
+                    if (kin.Nested.Kind != null)
                     {
                         var key = keyLines.Select(x => x.Key).JoinLines();
                         if (!keys.Add(key))
@@ -120,10 +121,33 @@ internal class Block : Node
         var fmt = options.FormatOptions;
         if (fmt.SkipAll || !Lines.Any()) return this;
 
+        if (fmt.MultilineToInline && (Kind == BlockKind.List || Kind == BlockKind.Dictionary) && !Errors.Any() && (options.MaxDepthToInline == null || Depth <= options.MaxDepthToInline.Value))
+        {
+            var firstValueLine = Lines.OfType<ValueLine>().FirstOrDefault();
+            if (firstValueLine != null)
+            {
+                var leadingComments = Lines.TakeWhile(line => line.LineNumber < firstValueLine.LineNumber);
+                var anyTrailingComments = Lines.SkipWhile(line => line.LineNumber < firstValueLine.LineNumber).Any(x => x.Comments.Any());
+                if (!anyTrailingComments)
+                {
+                    var jsonNode = ToJsonNode()!;
+                    if (IsValidInlineValue(jsonNode, options.MaxDepthToInline, false))
+                    {
+                        var inlineLine = new InlineLine { Indentation = indentation, Inline = InlineFromJsonNode(jsonNode) };
+                        if (options.MaxLineLengthToInline == null || inlineLine.ToStringLength() <= options.MaxLineLengthToInline.Value)
+                        {
+                            return new Block([.. leadingComments, inlineLine]);
+                        }
+                    }
+                }
+            }
+        }
+
+        var pendingMultilineKey = false;
         for (var i = 0; i < Lines.Count; i++)
         {
             var line = Lines[i];
-            if (line is InlineLine inlineLine && !fmt.SkipInlineToMultiline && !inlineLine.Inline.Errors.Any())
+            if (line is InlineLine inlineLine && fmt.InlineToMultiline && !inlineLine.Inline.Errors.Any())
             {
                 if (options.MaxDepthToInline != null && options.MaxDepthToInline.Value < line.Depth || options.MaxLineLengthToInline != null && options.MaxLineLengthToInline.Value < line.ToStringLength())
                 {
@@ -195,7 +219,29 @@ internal class Block : Node
                     }
                 }
             }
-            Lines[i] = line.Transform(options, indentation);
+            if (fmt.DictionaryKeys)
+            {
+                if (line is KeyItemLine keyItemLine)
+                {
+                    if (!pendingMultilineKey && line.Nested.Kind != null && keyItemLine.Key.IsValidKey())
+                    {
+                        Lines[i] = new DictionaryItemLine
+                        {
+                            Indentation = line.Indentation,
+                            Key = keyItemLine.Key,
+                            KeyTrailingWhiteSpace = "",
+                            LineNumber = line.LineNumber,
+                            Nested = line.Nested
+                        };
+                    }
+                    pendingMultilineKey = line.Nested.Kind == null;
+                }
+                else if (line is not IgnoredLine)
+                {
+                    pendingMultilineKey = true;
+                }
+            }
+            Lines[i] = Lines[i].Transform(options, indentation);
         }
         return this;
     }
@@ -247,41 +293,39 @@ internal class Block : Node
         return null;
     }
 
-    /// <summary>
-    /// Creates a CST from JsonNode.
-    /// </summary>
-    public static Block FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
+    private static bool IsValidInlineValue(JsonNode node, int? maxDepth, bool isInsideDictionary)
     {
-        bool IsValidInlineValue(JsonNode node, int? maxDepth, bool isInsideDictionary)
+        if (node is JsonArray _array && _array.Count == 0) return true;
+        if (node is JsonObject _obj && _obj.Count == 0) return true;
+        if (node is JsonValue value)
         {
-            if (node is JsonArray _array && _array.Count == 0) return true;
-            if (node is JsonObject _obj && _obj.Count == 0) return true;
-            if (maxDepth == 0) return false;
-            return node switch
-            {
-                JsonValue value => value.GetValueKind() == JsonValueKind.String && node.GetValue<string>()!.IsValidInlineString(isInsideDictionary),
-                JsonArray array => array.All(x => x != null && IsValidInlineValue(x, maxDepth - 1, isInsideDictionary)),
-                JsonObject obj => obj.All(x => x.Key.IsValidInlineString(true) && IsValidInlineValue(x.Value, maxDepth - 1, true)),
-                _ => false
-            };
+            return value.GetValueKind() == JsonValueKind.String && node.GetValue<string>()!.IsValidInlineString(isInsideDictionary);
         }
-
-        Inline InlineFromJsonNode(JsonNode node, int leadingSpaces = 0)
+        if (maxDepth == 0) return false;
+        return node switch
         {
-            if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)
+            JsonArray array => array.All(x => x != null && IsValidInlineValue(x, maxDepth - 1, isInsideDictionary)),
+            JsonObject obj => obj.All(x => x.Key.IsValidInlineString(true) && IsValidInlineValue(x.Value, maxDepth - 1, true)),
+            _ => false
+        };
+    }
+
+    private static Inline InlineFromJsonNode(JsonNode node, int leadingSpaces = 0)
+    {
+        if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)
+        {
+            return new InlineString { LeadingWhiteSpace = new string(' ', leadingSpaces), Value = value.GetValue<string>() };
+        }
+        if (node is JsonArray array)
+        {
+            return new InlineList { LeadingWhiteSpace = new string(' ', leadingSpaces), Values = array.Select((x, i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
+        }
+        if (node is JsonObject obj)
+        {
+            return new InlineDictionary
             {
-                return new InlineString { LeadingWhiteSpace = new string(' ', leadingSpaces), Value = value.GetValue<string>() };
-            }
-            if (node is JsonArray array)
-            {
-                return new InlineList { LeadingWhiteSpace = new string(' ', leadingSpaces), Values = array.Select((x,i) => InlineFromJsonNode(x!, i > 0 ? 1 : 0)) };
-            }
-            if (node is JsonObject obj)
-            {
-                return new InlineDictionary
-                {
-                    LeadingWhiteSpace = new string(' ', leadingSpaces),
-                    KeyValues = obj.Select((x,i) => new List<Inline>{
+                LeadingWhiteSpace = new string(' ', leadingSpaces),
+                KeyValues = obj.Select((x, i) => new List<Inline>{
                         new InlineString
                         {
                             LeadingWhiteSpace = new string(' ', i > 0 ? 1 : 0),
@@ -289,11 +333,16 @@ internal class Block : Node
                         },
                         InlineFromJsonNode(x.Value, 1)
                     })
-                };
-            }
-            throw new NestedTextSerializeException($"Unexpected kind {node.GetValueKind()}.");
+            };
         }
+        throw new NestedTextSerializeException($"Unexpected kind {node.GetValueKind()}.");
+    }
 
+    /// <summary>
+    /// Creates a CST from JsonNode.
+    /// </summary>
+    public static Block FromJsonNode(JsonNode node, NestedTextSerializerOptions options)
+    {
         Block FromJsonNodeImpl(JsonNode node, int indentation)
         {
             if (node is JsonValue value && value.GetValueKind() == JsonValueKind.String)

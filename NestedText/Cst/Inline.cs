@@ -27,7 +27,7 @@ internal class InlineString : Inline
     public required string Value { get; set; }
     public override IEnumerable<ParsingError> CalcErrors()
         => Suffix.IsWhiteSpace() ? [] : [ToError($"Extra character after string value. Expected ',' or '}}', found '{SuffixNonWhiteSpace[0]}'.", SuffixNonWhiteSpaceStart)];
-    public override int CalcDepth() => 1;
+    public override int CalcDepth() => 0;
 
     internal override Inline Transform(NestedTextSerializerOptions options, bool isFirst)
     {
@@ -49,7 +49,7 @@ internal class InlineList : Inline
 {
     public required IEnumerable<Inline> Values { get; set; }
     public bool Unterminated { get; set; }
-    public override int CalcDepth() => 1 + (Values.Any() ? Values.Max(x => x.Depth) : 0);
+    public override int CalcDepth() => 1 + Values.Max(x => x.Depth, -1);
     public override IEnumerable<ParsingError> CalcErrors()
     {
         foreach (var item in Values)
@@ -113,7 +113,7 @@ internal class InlineDictionary : Inline
 {
     public required IEnumerable<List<Inline>> KeyValues { get; set; }
     public bool Unterminated { get; set; }
-    public override int CalcDepth() => 1 + (KeyValues.Any(x => x.Count == 2) ? KeyValues.Where(x => x.Count == 2).Max(x => x[1].Depth) : 0);
+    public override int CalcDepth() => 1 + KeyValues.Where(x => x.Count == 2).Max(x => x[1].Depth, -1);
     public override IEnumerable<ParsingError> CalcErrors()
     {
         var keys = new HashSet<string>();

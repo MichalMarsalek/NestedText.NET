@@ -22,7 +22,7 @@ public class DataDrivenTests
 
     private void DdtTheoryImplementation(string path, string name, string kind)
     {
-        List<string> skipErrorMatchingTests = ["inline_dict_20", "inline_dict_22"];
+        List<string> skipErrorMessageMatchingTests = ["inline_dict_20", "inline_dict_22"];
 
         path = Path.Combine(path, name);
         string? Read(string file)
@@ -67,7 +67,7 @@ public class DataDrivenTests
                     actual.Errors.First().LineNumber.Should().Be(loadError.LineNo + 1);
                     actual.Errors.First().ColumnNumber.Should().Be((loadError.ColNo ?? 0) + 1);
 
-                    if (!skipErrorMatchingTests.Contains(name))
+                    if (!skipErrorMessageMatchingTests.Contains(name))
                     {
                         var expectedMessage = loadError.Message;
                         expectedMessage = Regex.Replace(expectedMessage, @"duplicate key: (.*)\.", "duplicate key: '$1'.");

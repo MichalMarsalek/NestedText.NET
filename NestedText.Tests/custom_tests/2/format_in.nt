@@ -1,5 +1,4 @@
 : key 1
   > value 1
-# comment
 key 2:
   > value 2

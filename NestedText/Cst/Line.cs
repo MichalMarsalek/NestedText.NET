@@ -26,7 +26,6 @@ internal abstract class Line : Node
     protected IEnumerable<ParsingError> AllNestedToErrors(int expectedIndentation)
         => Nested.Lines.Where(line => line is not BlankLine && line is not CommentLine)
         .Select(x => x.ToError("Invalid indentation.", expectedIndentation));
-    public bool NestedHasValue => Nested.Kind != null;
     abstract internal Line Transform(NestedTextSerializerOptions options, int indentation);
     public override List<CommentLine> CalcComments() => Nested.Comments;
 }
@@ -44,7 +43,7 @@ internal abstract class IgnoredLine : Line
 internal class BlankLine : IgnoredLine {
     internal override Line Transform(NestedTextSerializerOptions options, int indentation) {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -56,7 +55,7 @@ internal class CommentLine : IgnoredLine
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -68,7 +67,7 @@ internal class ErrorLine : IgnoredLine
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -79,7 +78,7 @@ internal abstract class ValueLine : Line { }
 internal class StringLine : ValueLine
 {
     public required string Value { get; set; }
-    public override int CalcDepth() => 1;
+    public override int CalcDepth() => 0;
     public override IEnumerable<ParsingError> CalcErrors() => AllNestedToErrors(Indentation);
 
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
@@ -87,7 +86,7 @@ internal class StringLine : ValueLine
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -110,7 +109,7 @@ internal class ListItemLine : ValueLine
     protected internal override StringBuilder AppendLineContent(StringBuilder builder)
         => builder.Append(RestOfLine == null ? "-" : "- " + RestOfLine);
 
-    public override int CalcDepth() => RestOfLine == null ? Nested.Depth : 1;
+    public override int CalcDepth() => RestOfLine == null ? Nested.Depth : 0;
     public override IEnumerable<ParsingError> CalcErrors()
     {
         if (RestOfLine != null)
@@ -122,7 +121,7 @@ internal class ListItemLine : ValueLine
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipRestOfLine && RestOfLine == null)
+        if (fmt.RestOfLine && RestOfLine == null)
         {
             var restOfLine = Nested.GetRestOfLineValidStringValue();
             if (restOfLine != null)
@@ -131,7 +130,7 @@ internal class ListItemLine : ValueLine
                 Nested = new();
             }
         }
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -145,7 +144,7 @@ internal class DictionaryItemLine : DictionaryLine
     public required string KeyTrailingWhiteSpace { get; set; }
     public string? RestOfLine { get; set; }
 
-    public override int CalcDepth() => RestOfLine == null ? Nested.Depth : 1;
+    public override int CalcDepth() => RestOfLine == null ? Nested.Depth : 0;
 
     public override IEnumerable<ParsingError> CalcErrors()
     {
@@ -171,7 +170,7 @@ internal class DictionaryItemLine : DictionaryLine
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipRestOfLine && RestOfLine == null)
+        if (fmt.RestOfLine && RestOfLine == null)
         {
             var restOfLine = Nested.GetRestOfLineValidStringValue();
             if (restOfLine != null)
@@ -180,7 +179,7 @@ internal class DictionaryItemLine : DictionaryLine
                 Nested = new();
             }
         }
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -193,7 +192,7 @@ internal class KeyItemLine : DictionaryLine
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
         return this;
     }
@@ -210,9 +209,9 @@ internal class InlineLine : Line
     internal override Line Transform(NestedTextSerializerOptions options, int indentation)
     {
         var fmt = options.FormatOptions;
-        if (!fmt.SkipIndentation) Indentation = indentation;
+        if (fmt.Indentation) Indentation = indentation;
         Nested = Nested.Transform(options, indentation + options.Indentation);
-        Inline = options.FormatOptions.SkipInlineItemsAlignment ? Inline : Inline.Transform(options, true);
+        Inline = options.FormatOptions.InlineWhitespace ? Inline.Transform(options, true) : Inline;
         return this;
     }
     public override IEnumerable<ParsingError> CalcErrors() => Inline.Errors;

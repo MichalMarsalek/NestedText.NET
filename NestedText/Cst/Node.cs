@@ -87,7 +87,7 @@ internal class Root : Node
     public Root Transform(NestedTextSerializerOptions options)
     {
         var fmt = options.FormatOptions;
-        return fmt.SkipAll ? this : new Root { Block = Block.Transform(options, 0), Unterminated = fmt.SkipTermination ? Unterminated : false };
+        return fmt.SkipAll ? this : new Root { Block = Block.Transform(options, 0), Unterminated = fmt.Termination ? false : Unterminated };
     }
 
     public JsonNode? ToJsonNode() => Block.ToJsonNode();

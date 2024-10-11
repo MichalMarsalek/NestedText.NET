@@ -8,7 +8,9 @@ public class NestedTextSerializerOptions
     public int Indentation { get; set; } = 2;
 
     /// <summary>
-    /// Max depth of a structure to emit as an inline value.
+    /// Max depth of a structure to emit as an inline value.<br>
+    /// Strings, empty lists & empty dictionaries have 0 depth.
+    /// Other values have depth equal to 1 + the max of the children's depth.
     /// </summary>
     public int? MaxDepthToInline { get; set; } = 1;
 
@@ -56,38 +58,43 @@ public enum EmptyType { String, List, Dictionary }
 public class FormatOptions
 {
     /// <summary>
-    /// Whether to keep indentation when formatting a document.
+    /// Whether to change indentation when formatting a document.
     /// </summary>
-    public bool SkipIndentation { get; set; } = false;
+    public bool Indentation { get; set; } = true;
 
     /// <summary>
-    /// Whether to keep inline items alignment.
+    /// Whether to change inline items leading and trailing whitespace.
     /// </summary>
-    public bool SkipInlineItemsAlignment { get; set; } = false;
+    public bool InlineWhitespace { get; set; } = true;
 
     /// <summary>
-    /// Whether to keep inline items on a single line.
+    /// Whether to convert inline items to multiline.
     /// </summary>
-    public bool SkipInlineToMultiline { get; set; } = false;
+    public bool InlineToMultiline { get; set; } = true;
 
     /// <summary>
-    /// Whether to keep multiline items on multiple lines.
+    /// Whether to convert multiline items to inline items.
     /// </summary>
-    public bool SkipMultilineToInline { get; set; } = false;
+    public bool MultilineToInline { get; set; } = true;
 
     /// <summary>
-    /// Whether to keep strings as rest-of-line or string items.
+    /// Whether to ćonvert nested strings to rest-of-line strings.
     /// </summary>
-    public bool SkipRestOfLine { get; set; } = false;
+    public bool RestOfLine { get; set; } = true;
 
     /// <summary>
-    /// Whether to keep unterminated documents unterminated.
+    /// Whether to terminated unterminated documents.
     /// </summary>
-    public bool SkipTermination { get; set; } = false;
+    public bool Termination { get; set; } = true;
+
+    /// <summary>
+    /// Whether to transform key items to dictionaryitems.
+    /// </summary>
+    public bool DictionaryKeys { get; set; } = true;
 
     public bool SkipAll
     {
-        get => SkipIndentation && SkipInlineItemsAlignment && SkipInlineToMultiline && SkipMultilineToInline && SkipRestOfLine && SkipTermination;
-        set => SkipIndentation = SkipInlineItemsAlignment = SkipInlineToMultiline = SkipMultilineToInline = SkipRestOfLine = SkipTermination = value;
+        get => !Indentation && !InlineWhitespace && !InlineToMultiline && !MultilineToInline && !RestOfLine && !Termination && !DictionaryKeys;
+        set => Indentation = InlineWhitespace = InlineToMultiline = MultilineToInline = RestOfLine = Termination = DictionaryKeys = !value;
     }
 }

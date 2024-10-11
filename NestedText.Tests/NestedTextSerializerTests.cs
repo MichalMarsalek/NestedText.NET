@@ -134,7 +134,7 @@ public class NestedTextSerializerTests
     [Fact]
     public void Serialize_ObjectWithScalarPropsWithUseDefaultConverters_ReturnsObject()
     {
-        var actual = NestedTextSerializer.Serialize(testObject1, new() { UseDefaultConventions = true });
+        var actual = NestedTextSerializer.Serialize(testObject1, new() { UseDefaultConventions = true, MaxDepthToInline = 0 });
         actual.Should().BeEquivalentTo(testObjectNt1.GetLines().JoinLines());
     }
 

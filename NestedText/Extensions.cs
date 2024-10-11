@@ -41,4 +41,7 @@ internal static class Extensions
 
     internal static string? EmptyToNull(this string? value)
         => value == "" ? null : value;
+
+    internal static Tout Max<Tin, Tout>(this IEnumerable<Tin> source, Func<Tin, Tout> func, Tout whenEmpty)
+        => source.Any() ? source.Max(func)! : whenEmpty;
 }

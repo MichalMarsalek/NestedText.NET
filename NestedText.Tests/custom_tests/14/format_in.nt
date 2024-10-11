@@ -1,0 +1,12 @@
+-
+  # Leading comments are allowed and preserved when converting
+  # a multiline structure to inline.
+  - item 1
+  - item 2
+  - item 3
+-
+  - item A
+  # Other comments prevent the conversion
+  - item B
+  # as that would lose information.
+  - item C
