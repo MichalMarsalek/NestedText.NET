@@ -69,14 +69,10 @@ public class DataDrivenTests
 
                     if (!skipErrorMessageMatchingTests.Contains(name))
                     {
-                        if (loadError.Message.Contains("found"))
-                        {
-                            throw new Exception(loadError.Message + string.Join(" ", loadError.Message.Select(x => (int)x)));
-                        }
                         var expectedMessage = loadError.Message;
                         expectedMessage = Regex.Replace(expectedMessage, @"duplicate key: (.*)\.", "duplicate key: '$1'.");
-                        expectedMessage = expectedMessage.Replace("‘", "'").Replace("’", "'");
-                        expectedMessage = Regex.Replace(expectedMessage, @"indentation: '\\.*'.*", "indentation:") +"---";
+                        expectedMessage = Regex.Replace(expectedMessage, @"indentation: '\\.*'.*", "indentation:");
+                        expectedMessage = string.Join("", expectedMessage.Select(x => x == 8216 || x == 8217 ? '\'' : x));
                         actual.Errors.First().Message.Should().ContainEquivalentOf(expectedMessage);
                     }
                 }
