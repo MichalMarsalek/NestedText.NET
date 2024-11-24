@@ -4,6 +4,22 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>NestedText</Title>
+    <Authors>MichalMarsalek</Authors>
+    <Description>NestedText is a file format for holding structured data. It is similar in concept to JSON, except that NestedText is designed to make it easy for people to enter, edit, or view the data directly. It organizes the data into a nested collection of name-value pairs, lists, and strings. The syntax is intended to be very simple and intuitive for most people.</Description>
+    <PackageProjectUrl>https://nestedtext.org/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MichalMarsalek/NestedText.NET</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>NestedText;Serialization</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>
